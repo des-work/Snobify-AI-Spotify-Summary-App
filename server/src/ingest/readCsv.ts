@@ -1,4 +1,4 @@
-﻿import fs from "fs";
+import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse";
 import { z } from "zod";
@@ -31,16 +31,49 @@ const RowSchema = z.object({
   "Played At": z.string().optional()
 });
 export type TrackRow = z.infer<typeof RowSchema>;
+export type IngestMeta = { files:number; skipped:number; totalRows:number };
 
-export async function readCsv(file: string): Promise<TrackRow[]> {
-  if(!fs.existsSync(file)) throw new Error("CSV not found at " + file);
+async function readCsvFile(file: string): Promise<{ rows: TrackRow[]; skipped: number }> {
   const out: TrackRow[] = [];
-  const required = ["Track URI"];
+  let skipped = 0;
   const raw = fs.createReadStream(file).pipe(parse({ columns: true, skip_empty_lines: true }));
-  for await (const rec of raw as any){
-    const obj = RowSchema.parse(rec);
-    for(const col of required){ if(!(col in rec) || String(rec[col]).trim()==="") throw new Error(`CSV missing required column: '${col}'`); }
-    out.push(obj);
+  for await (const rec of raw as any) {
+    // URI aliases + trim
+    let uri = (rec["Track URI"] ?? rec["Spotify URI"] ?? rec["URI"] ?? rec["track_uri"] ?? "").toString().trim();
+    if (!uri) { skipped++; continue; }
+    rec["Track URI"] = uri;
+    try { out.push(RowSchema.parse(rec)); }
+    catch { skipped++; }
   }
-  return out;
+  return { rows: out, skipped };
+}
+
+/** Reads either a single CSV file or a directory of CSV files. */
+export async function readCsvAny(csvOrDir: string, opts?: { maxMb?: number }): Promise<{ rows: TrackRow[]; meta: IngestMeta }> {
+  const maxMb = opts?.maxMb ?? 15;
+  if (!fs.existsSync(csvOrDir)) throw new Error("Path not found: " + csvOrDir);
+  const stat = fs.statSync(csvOrDir);
+
+  if (stat.isFile()) {
+    if (!csvOrDir.toLowerCase().endsWith(".csv")) throw new Error("Expected a .csv file: " + csvOrDir);
+    const { rows, skipped } = await readCsvFile(csvOrDir);
+    return { rows, meta: { files: 1, skipped, totalRows: rows.length } };
+  }
+
+  if (!stat.isDirectory()) throw new Error("Path is neither file nor directory: " + csvOrDir);
+
+  const files = fs.readdirSync(csvOrDir).filter(f => f.toLowerCase().endsWith(".csv")).map(f => path.join(csvOrDir, f));
+  const chunks: TrackRow[][] = [];
+  let skipped = 0, total = 0, usedFiles = 0;
+
+  for (const f of files) {
+    const mb = fs.statSync(f).size / (1024*1024);
+    if (mb > maxMb) { skipped++; continue; } // count as skipped file
+    const { rows, skipped: s } = await readCsvFile(f);
+    chunks.push(rows);
+    total += rows.length;
+    skipped += s;
+    usedFiles++;
+  }
+  return { rows: chunks.flat(), meta: { files: usedFiles, skipped, totalRows: total } };
 }

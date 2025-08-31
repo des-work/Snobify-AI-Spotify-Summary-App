@@ -1,0 +1,10 @@
+{
+  "profilesDir": "profiles",
+  "defaultProfile": "default",
+  "enableCloudAI": false,
+  "cloudAICostCapUSD": 1,
+  "logging": {
+    "level": "info",
+    "pretty": true
+  }
+}

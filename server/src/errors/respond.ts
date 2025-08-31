@@ -1,16 +1,17 @@
-﻿import { FastifyReply } from "fastify";
-import { ErrorCode } from "../../../common/errors.js";
+import { FastifyReply } from "fastify";
+import ERROR_CODE from "../../../common/errors.ts";
+
 export function sendError(
   reply: FastifyReply,
-  code: keyof typeof ErrorCode,
+  code: keyof typeof ERROR_CODE,
   message: string,
   reqId: string,
   hint?: string,
   details?: unknown
 ){
-  reply.code(httpCode(code)).send({ error: { code: ErrorCode[code], message, reqId, hint, details } });
+  reply.code(httpCode(code)).send({ error: { code: ERROR_CODE[code], message, reqId, hint, details } });
 }
-function httpCode(code: keyof typeof ErrorCode): number {
+function httpCode(code: keyof typeof ERROR_CODE): number {
   switch(code){
     case "ProfileNotFound": return 404;
     case "CsvMissing": return 400;
