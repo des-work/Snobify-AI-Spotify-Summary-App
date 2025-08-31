@@ -1,9 +1,5 @@
-﻿# Snobify data
-Music data/
-profiles/*/history/**/*.csv
+﻿Music data/
 profiles/*/history/**
-
-# Build artifacts
 app/node_modules/
 server/node_modules/
 app/dist/
