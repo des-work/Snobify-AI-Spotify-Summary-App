@@ -1,3 +1,4 @@
+import "./styles.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchStats, fetchDebug } from "./api/client";
 import type { Stats } from "./types";

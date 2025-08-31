@@ -1,28 +1,16 @@
-import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
-
+import { jsPDF } from "jspdf";
 export async function exportPdf(container: HTMLElement, filename: string){
-  const canvas = await html2canvas(container, { backgroundColor: "#0b0b0f", scale: 2 });
-  const img = canvas.toDataURL("image/png");
-  const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-
-  const ratio = canvas.width / canvas.height;
-  const imgW = pageW;
-  const imgH = imgW / ratio;
-
-  let y = 0;
-  let remaining = imgH;
-
-  // Tile down multiple pages if needed
-  while (remaining > 0){
-    const sliceH = Math.min(pageH, remaining);
-    // Add the same image each page but shift y using addImage 'y' param (works for simple exports)
-    pdf.addImage(img, "PNG", 0, -y, imgW, imgH, undefined, "FAST");
-    remaining -= pageH;
-    y += pageH;
-    if (remaining > 0) pdf.addPage();
+  const pdf = new jsPDF({ orientation: "p", unit: "px", format: "a4" });
+  const cards = Array.from(container.querySelectorAll<HTMLElement>(".card"));
+  for(let i=0;i<cards.length;i++){
+    const c = cards[i];
+    const canvas = await html2canvas(c, { backgroundColor: "#0b0b0f", useCORS: true, scale: 2 });
+    const img = canvas.toDataURL("image/png");
+    const w = pdf.internal.pageSize.getWidth();
+    const h = (canvas.height/canvas.width) * w;
+    if(i>0) pdf.addPage();
+    pdf.addImage(img, "PNG", 0, 0, w, h);
   }
   pdf.save(`${filename}.pdf`);
 }

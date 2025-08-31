@@ -1,4 +1,4 @@
-﻿param()
+param()
 $ErrorActionPreference = "Stop"
 function Fail($msg){ Write-Host $msg -ForegroundColor Red; exit 1 }
 $root = "C:\Users\desmo\AI Programs\Snobify"
@@ -27,3 +27,11 @@ else{
   Write-Host "CSV header OK"
 }
 Write-Host "Diagnose complete."
+
+# App presence
+$ui = Join-Path $root "app"
+if(-not (Test-Path $ui)){ Write-Host "App folder missing: $ui" -ForegroundColor Yellow } else { Write-Host "App present at $ui" }
+# Port check: 5173
+$p = 5173
+$inUse = (Get-NetTCPConnection -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -eq $p -and $_.State -eq "Listen" })
+if($inUse){ Write-Host "Port $p ALREADY IN USE (Vite?)" -ForegroundColor Yellow } else { Write-Host "Port $p is free" }

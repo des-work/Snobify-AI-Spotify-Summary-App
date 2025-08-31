@@ -1,4 +1,4 @@
-﻿import path from "path";
+import path from "path";
 import fs from "fs";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
@@ -44,8 +44,8 @@ const lastDateISO  = (dates: Date[]) => dates.length ? dates[dates.length - 1].t
 const app = Fastify({ logger: false });
 await app.register(cors, { origin: true });
 
-app.get("/api/health", async (_req, reply) => {
-  reply.send({ ok:true, uptime: process.uptime(), version: "0.3" });
+
+app.get("/metrics", async (req, reply)=>{ reply.header("Content-Type","text/plain; version=0.0.4"); reply.send(metricsText()); });
 });
 
 app.get("/api/profiles", async (_req, reply) => {
@@ -59,7 +59,7 @@ app.get("/api/profiles", async (_req, reply) => {
 // Reads profiles/<name>/history.csv if present,
 // else profiles/<name>/history/*.csv (merged) if folder exists.
 app.get("/api/stats", async (request, reply) => {
-  const id = reqId();
+  const id = reqId(); incRequest("/api/taste-profile"); const timer = new Timer(); reply.header("x-req-id", id); incRequest("/api/stats"); const timer = new Timer(); reply.header("x-req-id", id);
   const q = (request.query as any) || {};
   const profile = String(q.profile || CONFIG.defaultProfile);
   const pdir = path.join(PROFILES_DIR, profile);
@@ -85,7 +85,7 @@ app.get("/api/stats", async (request, reply) => {
       .filter(d => !isNaN(d.getTime()))
       .sort((a,b)=>a.getTime()-b.getTime());
 
-    const stats = compute(rows);
+    const stats = compute(rows); timer.lap("compute");
     // plug a stable-ish hash if missing
     if (!stats?.meta?.hash) {
       const h = String(rows.length) + ":" + firstDateISO(dts) + ":" + lastDateISO(dts);
@@ -93,9 +93,9 @@ app.get("/api/stats", async (request, reply) => {
     }
 
     // Server-Timing placeholder
-    reply.header("Server-Timing", "compute;dur=1");
+    reply.header("Server-Timing", timer.header());
     reply.send({ profile, stats });
-  }catch(err:any){
+  } catch(err:any){ incError("/api/taste-profile"); incError("/api/stats");
     logger.error({ err: String(err), reqId: id }, "stats failed");
     return sendError(reply, "Unknown", err?.message || "Unknown error", id);
   }
@@ -124,7 +124,7 @@ app.get("/api/debug", async (request, reply) => {
 // Analyzes library across time (vintage vs modern, favorites per genre),
 // and rates each playlist (cohesion-heavy) using CSVs in profiles/<name>/history/*.csv
 app.get("/api/ratings", async (request, reply) => {
-  const id = reqId();
+  const id = reqId(); incRequest("/api/taste-profile"); const timer = new Timer(); reply.header("x-req-id", id); incRequest("/api/stats"); const timer = new Timer(); reply.header("x-req-id", id);
   const q = (request.query as any) || {};
   const profile = String(q.profile || CONFIG.defaultProfile);
   const histOnly = String(q.histOnly ?? "1") !== "0"; // default: history-only
@@ -169,14 +169,14 @@ app.get("/api/ratings", async (request, reply) => {
     };
 
     reply.send({ profile, playlistRatings, library, meta });
-  }catch(err:any){
+  } catch(err:any){ incError("/api/taste-profile"); incError("/api/stats");
     logger.error({ err: String(err), reqId: id }, "ratings failed");
     return sendError(reply, "Unknown", err?.message || "Unknown error", id);
   }
 });
 
 app.get("/api/taste-profile", async (request, reply) => {
-  const id = reqId();
+  const id = reqId(); incRequest("/api/taste-profile"); const timer = new Timer(); reply.header("x-req-id", id); incRequest("/api/stats"); const timer = new Timer(); reply.header("x-req-id", id);
   const q = (request.query as any) || {};
   const profile = String(q.profile || CONFIG.defaultProfile);
   const pdir = path.join(PROFILES_DIR, profile);
@@ -189,7 +189,7 @@ app.get("/api/taste-profile", async (request, reply) => {
       return sendError(reply, "CsvMissing", "history folder not found for profile", id, "Place CSVs at profiles\\<name>\\history\\*.csv");
     }
 
-    const rowsAll = await readAllCsvs(hdir);
+    const rowsAll = await readAllCsvs(hdir); timer.lap("read");
     const tp = buildTasteProfile(Array.isArray(rowsAll) ? rowsAll : [], {
       nichePopularityThreshold: 31,   // Spotify-9 (more niche)
       playWeight: 0.7, uniqueWeight: 0.3,
@@ -208,7 +208,7 @@ app.get("/api/taste-profile", async (request, reply) => {
       rows: Array.isArray(rowsAll) ? rowsAll.length : 0,
       window: { start: dates.length?dates[0].toISOString():"", end: dates.length?dates[dates.length-1].toISOString():"" }
     }});
-  } catch(err:any){
+  } catch(err:any){ incError("/api/taste-profile"); incError("/api/stats");
     logger.error({ err: String(err), reqId: id }, "taste-profile failed");
     return sendError(reply, "Unknown", err?.message || "Unknown error", id);
   }
