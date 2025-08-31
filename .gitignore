@@ -1,0 +1,21 @@
+﻿# Node
+node_modules/
+pnpm-lock.yaml
+npm-debug.log*
+.yarn/*
+.yarnrc.yml
+
+# Build
+dist/
+.cache/
+cache/
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# App cache
+cache/**
+!cache/.gitkeep
