@@ -1,21 +1,10 @@
-﻿# Node
-node_modules/
-pnpm-lock.yaml
-npm-debug.log*
-.yarn/*
-.yarnrc.yml
+﻿# Snobify data
+Music data/
+profiles/*/history/**/*.csv
+profiles/*/history/**
 
-# Build
-dist/
-.cache/
-cache/
-
-# OS/Editor
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# App cache
-cache/**
-!cache/.gitkeep
+# Build artifacts
+app/node_modules/
+server/node_modules/
+app/dist/
+server/dist/
