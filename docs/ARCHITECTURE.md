@@ -1,0 +1,3 @@
+﻿# Snobify Architecture (v0.2)
+
+... (paste the full ARCHITECTURE.md content I drafted) ...
