@@ -1,0 +1,22 @@
+/* minimal transitions + overlays */
+.scene-engine { position: relative; width: 100%; min-height: 60vh; }
+.scene { position: relative; overflow: hidden; border-radius: 16px; background: #0b0b0f; color: #e6e6ea; padding: 24px; transition: transform 240ms ease, opacity 240ms ease; }
+.scene.stage-enter { opacity: 0; transform: translateY(6px); }
+.scene.stage-show  { opacity: 1; transform: translateY(0px); }
+.scene.stage-exit  { opacity: 0.25; transform: translateY(-6px); }
+.scene-controls { margin-top: 10px; display: flex; gap: 8px; align-items: center; }
+.btn { background: #1f2430; color: #fff; padding: 6px 10px; border: none; border-radius: 10px; cursor: pointer; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.muted { opacity: .6; font-size: 12px; }
+
+/* overlays */
+.overlay.dots::before {
+  content: ""; position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 12px 12px; pointer-events: none;
+}
+.overlay.arrows::after {
+  content: ""; position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0 8px, transparent 8px 16px);
+  pointer-events: none;
+}

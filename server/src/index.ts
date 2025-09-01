@@ -1,5 +1,7 @@
+import { readAllCsvs, readPlaylistsAsMapLoose } from "./ingest/readAll.js";
 import path from "path";
 import fs from "fs";
+import { scoreOnePlaylist, rareEligibilityFromPlaylists } from "./compute/playlistScore.js";
 
 import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 import Fastify from "fastify";
@@ -17,7 +19,7 @@ import { sendError } from "./errors/respond.js";
 import readCsv from "./ingest/readCsv.js";
 
 import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
-import { readAllCsvs } from "./ingest/readAll.js";
+import { readPlaylistsAsMapLoose readAllCsvs
 import { compute } from "./compute/compute.js";
 
 
@@ -207,6 +209,40 @@ app.get("/api/taste-profile", async (request, reply) => {
     }});
   } catch(err:any){ incError("/api/taste-profile"); incError("/api/stats");
     logger.error({ err: String(err), reqId: id }, "taste-profile failed");
+    return sendError(reply, "Unknown", err?.message || "Unknown error", id);
+  }
+});
+app.get("/api/playlist-scores", async (request, reply) => {
+  const id = reqId();
+  incRequest("/api/playlist-scores");
+  const timer = new Timer();
+  reply.header("x-req-id", id);
+
+  try {
+    const q = (request.query as any) || {};
+    const profile = String(q.profile || CONFIG.defaultProfile);
+    const pdir = path.join(PROFILES_DIR, profile);
+    const hdir = path.join(pdir, "history");
+    reply.header("x-snobify-profile", profile);
+
+    if (!fs.existsSync(pdir)) {
+      return sendError(reply, "ProfileNotFound", `Profile '${profile}' not found`, id, "Create profiles\\<name>\\history\\*.csv");
+    }
+    if (!fs.existsSync(hdir) || !fs.statSync(hdir).isDirectory()) {
+      return sendError(reply, "CsvMissing", "history folder not found for profile", id, "Place CSVs at profiles\\<name>\\history\\*.csv");
+    }
+
+    const by = await readPlaylistsAsMapLoose(hdir);
+const scores = [...by.entries()].map(([name, rows]) => scoreOnePlaylist(name, rows));
+    scores.sort((a,b)=> b.score - a.score);
+
+    const rare = rareEligibilityFromPlaylists(scores);
+
+    reply.header("server-timing", timer.total("playlist-scores"));
+    reply.send({ profile, rare, scores, meta: { playlists: scores.length } });
+  } catch (err:any) {
+    incError("/api/playlist-scores");
+    logger?.error?.({ err: String(err), reqId: id }, "playlist-scores failed");
     return sendError(reply, "Unknown", err?.message || "Unknown error", id);
   }
 });
