@@ -1,36 +1,22 @@
 import path from "path";
 import fs from "fs";
-
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 
-
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 import { ConfigSchema, type AppConfig } from "./config/schema.js";
 import { logger } from "./observability/logger.js";
-
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 import { sendError } from "./errors/respond.js";
 
 // Stats (original)
 import readCsv from "./ingest/readCsv.js";
-
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 import { readAllCsvs } from "./ingest/readAll.js";
 import { compute } from "./compute/compute.js";
 
-
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 // New analysis
 import { analyzeLibrary } from "./compute/libraryAnalysis.js";
-
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 import { buildTasteProfile } from "./compute/tasteProfile.js";
 import { computePlaylistRatings } from "./compute/playlistRatings.js";
 
-
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 const reqId = ()=> Math.random().toString(36).slice(2,9);
 const root = path.resolve(process.cwd(), "..");
 const cfgPath = path.join(root, "snobify.config.json");
@@ -56,12 +42,6 @@ const lastDateISO  = (dates: Date[]) => dates.length ? dates[dates.length - 1].t
 
 // ---------- server ----------
 const app = Fastify({ logger: false });
-
-app.setErrorHandler((err, request, reply) => {
-  // dump to console and return JSON so our tests can read it
-  console.error("[route-error]", request?.url, err);
-  reply.status(500).send({ error: { message: err?.message || String(err), stack: err?.stack, url: request?.url } });
-});
 await app.register(cors, { origin: true });
 
 
@@ -77,7 +57,7 @@ app.get("/api/profiles", async (_req, reply) => {
 // Reads profiles/<name>/history.csv if present,
 // else profiles/<name>/history/*.csv (merged) if folder exists.
 app.get("/api/stats", async (request, reply) => {
-      const id = reqId(); incRequest("/api/stats"); const timer = new Timer(); reply.header("x-req-id", id);
+    const id = reqId(); incRequest("/api/stats"); const timer = new Timer(); reply.header("x-req-id", id);
   const q = (request.query as any) || {};
   const profile = String(q.profile || CONFIG.defaultProfile);
   const pdir = path.join(PROFILES_DIR, profile);
@@ -121,7 +101,28 @@ app.get("/api/stats", async (request, reply) => {
 
 // --- /api/debug ---
 app.get("/api/debug", async (request, reply) => {
-    const id = reqId(); incRequest("/api/debug"); const timer = new Timer(); reply.header("x-req-id", id);
+  const q = (request.query as any) || {};
+  const profile = String(q.profile || CONFIG.defaultProfile);
+  const pdir = path.join(PROFILES_DIR, profile);
+  const hdir = path.join(pdir, "history");
+  const singleCsv = path.join(pdir, "history.csv");
+
+  const out: any = { profile, pdir, exists: fs.existsSync(pdir) };
+  try{
+    out.singleCsv = fs.existsSync(singleCsv);
+    out.historyDir = fs.existsSync(hdir) && fs.statSync(hdir).isDirectory();
+    if (out.historyDir) {
+      out.files = safeArr(fs.readdirSync(hdir)).filter(f=>f.toLowerCase().endsWith(".csv")).length;
+    }
+  }catch{}
+  reply.send(out);
+});
+
+// --- /api/ratings ---
+// Analyzes library across time (vintage vs modern, favorites per genre),
+// and rates each playlist (cohesion-heavy) using CSVs in profiles/<name>/history/*.csv
+app.get("/api/ratings", async (request, reply) => {
+  const id = reqId(); incRequest("/api/taste-profile"); const timer = new Timer(); reply.header("x-req-id", id); incRequest("/api/stats"); const timer = new Timer(); reply.header("x-req-id", id);
   const q = (request.query as any) || {};
   const profile = String(q.profile || CONFIG.defaultProfile);
   const histOnly = String(q.histOnly ?? "1") !== "0"; // default: history-only
@@ -173,7 +174,7 @@ app.get("/api/debug", async (request, reply) => {
 });
 
 app.get("/api/taste-profile", async (request, reply) => {
-    const id = reqId(); incRequest("/api/taste-profile"); const timer = new Timer(); reply.header("x-req-id", id);
+  const id = reqId(); incRequest("/api/taste-profile"); const timer = new Timer(); reply.header("x-req-id", id); incRequest("/api/stats"); const timer = new Timer(); reply.header("x-req-id", id);
   const q = (request.query as any) || {};
   const profile = String(q.profile || CONFIG.defaultProfile);
   const pdir = path.join(PROFILES_DIR, profile);
