@@ -4,3 +4,6 @@ app/node_modules/
 server/node_modules/
 app/dist/
 server/dist/
+# local backups
+*.bak-*
+server/src/*.bak-*
