@@ -1,38 +1,29 @@
-import { readAllCsvs, readPlaylistsAsMapLoose } from "./ingest/readAll.js";
+import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
+
 import path from "path";
 import fs from "fs";
 import { scoreOnePlaylist, rareEligibilityFromPlaylists } from "./compute/playlistScore.js";
 
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 
-
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 import { ConfigSchema, type AppConfig } from "./config/schema.js";
 import { logger } from "./observability/logger.js";
 
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 import { sendError } from "./errors/respond.js";
 
 // Stats (original)
 import readCsv from "./ingest/readCsv.js";
+import { readAllCsvs, readPlaylistsAsMapLoose } from "./ingest/readAll.js";
 
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
-import { readPlaylistsAsMapLoose readAllCsvs
 import { compute } from "./compute/compute.js";
 
-
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 // New analysis
 import { analyzeLibrary } from "./compute/libraryAnalysis.js";
 
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 import { buildTasteProfile } from "./compute/tasteProfile.js";
 import { computePlaylistRatings } from "./compute/playlistRatings.js";
 
-
-import { incRequest, metricsText, Timer, incError } from "./observability/metrics.js";
 const reqId = ()=> Math.random().toString(36).slice(2,9);
 const root = path.resolve(process.cwd(), "..");
 const cfgPath = path.join(root, "snobify.config.json");
