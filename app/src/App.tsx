@@ -2,105 +2,238 @@ import "./styles.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchStats, fetchDebug } from "./api/client";
 import type { Stats } from "./types";
-import SceneDeck, { Scene } from "./components/SceneDeck";
-import DebugDock from "./components/DebugDock";
-import TopGenres from "./components/cards/TopGenres";
-import DiscoveryTrend from "./components/cards/DiscoveryTrend";
-import ActivityTrend from "./components/cards/ActivityTrend";
-import RareTracks from "./components/cards/RareTracks";
-import TasteCard from "./components/cards/TasteCard";
-import SnobCard from "./components/cards/SnobCard";
-import SummaryCard from "./components/cards/SummaryCard";
+import ErrorBoundary from "./components/ErrorBoundary";
+import DebugPanel from "./components/DebugPanel";
+import WelcomePage from "./components/WelcomePage";
+import SummaryDashboard from "./components/SummaryDashboard";
+import RarityAnalysis from "./components/RarityAnalysis";
+import TasteProfile from "./components/TasteProfile";
 import { exportPdf } from "./pdf";
 import { exportCardPng } from "./export";
+import { logger } from "./utils/debugLogger";
+
+type AppPage = 'welcome' | 'summary' | 'rarity' | 'taste';
 
 export default function App(){
   const [profile, setProfile] = useState("default");
   const [stats, setStats] = useState<Stats|null>(null);
-  const [dockOpen, setDockOpen] = useState(false);
-  const [meta, setMeta] = useState<{timings?:string; etag?:string; xhash?:string; latency?:number; debug?: any}>({});
-  const [mode, setMode] = useState<"PG13"|"R">("R");
-  const [useStats, setUseStats] = useState(true);
+  const [currentPage, setCurrentPage] = useState<AppPage>('welcome');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(()=>{
-    const h=(e:KeyboardEvent)=>{ if(e.key.toLowerCase()==="d") setDockOpen(v=>!v); };
-    window.addEventListener("keydown", h); return ()=> window.removeEventListener("keydown",h);
-  },[]);
+  useEffect(() => {
+    logger.info('APP', 'Snobify app initialized', {
+      profile,
+      currentPage,
+      userAgent: navigator.userAgent,
+      url: window.location.href
+    });
+  }, []);
 
-  useEffect(()=>{
-    (async ()=>{
-      const { data, timings, etag, xhash } = await fetchStats(profile);
+  useEffect(() => {
+    if (currentPage !== 'welcome') {
+      loadStats();
+    }
+  }, [currentPage, profile]);
+
+  const loadStats = async () => {
+    setLoading(true);
+    setError(null);
+    
+    logger.debug('APP', `Loading stats for page: ${currentPage}`, { profile, currentPage });
+    
+    try {
+      const { data } = await fetchStats(profile);
       setStats(data.stats);
-      const dbg = await fetchDebug(profile).catch(()=>null);
-      setMeta({ timings, etag, xhash, latency: (data as any)._latencyMs, debug: dbg });
-    })();
-  },[profile]);
-
-  // expose toggles for SummaryCard
-  useEffect(()=>{ (window as any).__snobify_mode = mode; (window as any).__snobify_useStats = useStats; },[mode, useStats]);
-
-  const scenes: Scene[] = useMemo(()=> stats ? [
-    { key: "snob",   position:"start",  el: <SnobCard stats={stats} /> },
-    { key: "genres", position:"middle", el: <TopGenres stats={stats} /> },
-    { key: "disc",   position:"free",   el: <DiscoveryTrend stats={stats} /> },
-    { key: "act",    position:"free",   el: <ActivityTrend stats={stats} /> },
-    { key: "taste",  position:"free",   el: <TasteCard stats={stats} /> },
-    { key: "rare",   position:"free",   el: <RareTracks stats={stats} /> },
-    { key: "summary",position:"end",    el: <SummaryCard stats={stats} /> }
-  ] : [], [stats]);
-
-  // Track last clicked/hovered card so header PNG button can export it
-  useEffect(()=>{
-    const root = containerRef.current;
-    if(!root) return;
-    function rememberCard(e: MouseEvent){
-      const c = (e.target as HTMLElement).closest(".card");
-      if(c) (window as any).__snobify_lastCard = c;
+      
+      logger.info('APP', 'Stats loaded successfully', {
+        profile,
+        currentPage,
+        trackCount: data.stats?.tracks?.length || 0
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
+      setError(errorMessage);
+      
+      logger.error('APP', 'Failed to load stats', {
+        profile,
+        currentPage,
+        error: errorMessage,
+        errorStack: err instanceof Error ? err.stack : undefined
+      });
+    } finally {
+      setLoading(false);
     }
-    function onPngClick(e: MouseEvent){
-      const btn = (e.target as HTMLElement).closest("[data-png]");
-      if(!btn) return;
-      let card = (e.target as HTMLElement).closest(".card") as HTMLElement | null;
-      if(!card) card = (window as any).__snobify_lastCard || null;
-      if(!card) return;
-      const key  = card.getAttribute("data-card") || "card";
-      const hash = stats?.meta.hash.slice(0,8) || "x";
-      exportCardPng(card, `Snobify_${profile}_${key}_${hash}`);
-    }
-    root.addEventListener("click", rememberCard);
-    root.addEventListener("click", onPngClick);
-    return ()=>{ root.removeEventListener("click", rememberCard); root.removeEventListener("click", onPngClick); }
-  }, [stats, profile]);
+  };
 
-  return (
-    <div className="container" ref={containerRef}>
-      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, gap:12, flexWrap:"wrap"}}>
-        <h1 style={{margin:0, fontSize:28}}>Snobify 😏</h1>
-        <div style={{display:"flex", gap:8, alignItems:"center", flexWrap:"wrap"}}>
-          <label className="muted">Mode:
-            <select value={mode} onChange={e=>setMode(e.target.value as any)} className="btn" style={{marginLeft:6}}>
-              <option value="R">R-rated</option>
-              <option value="PG13">PG-13</option>
-            </select>
-          </label>
-          <label className="muted">Use stats:
-            <input type="checkbox" checked={useStats} onChange={e=>setUseStats(e.target.checked)} style={{marginLeft:6}}/>
-          </label>
-          <button className="btn" onClick={()=> setProfile(p=>p)} title="Shuffle free cards">Shuffle</button>
-          <button className="btn" onClick={async()=>{
-            if(containerRef.current && stats){
-              await exportPdf(containerRef.current, `Snobify_${profile}_${stats.meta.hash.slice(0,8)}`);
-            }
-          }}>Export PDF</button>
-          <button className="btn" data-png>📸 PNG (this card)</button>
+  const handleGetStarted = () => {
+    logger.info('APP', 'User started the app flow');
+    setCurrentPage('summary');
+  };
+
+  const handleNext = () => {
+    logger.debug('APP', `Navigating from ${currentPage} to next page`);
+    if (currentPage === 'summary') setCurrentPage('rarity');
+    if (currentPage === 'rarity') setCurrentPage('taste');
+  };
+
+  const handleBack = () => {
+    logger.debug('APP', `Navigating back from ${currentPage}`);
+    if (currentPage === 'rarity') setCurrentPage('summary');
+    if (currentPage === 'taste') setCurrentPage('rarity');
+  };
+
+  const handleExport = async () => {
+    logger.info('APP', 'User initiated export');
+    try {
+      if (containerRef.current && stats) {
+        await exportPdf(containerRef.current, `Snobify_${profile}_${stats.meta.hash.slice(0,8)}`);
+        logger.info('APP', 'Export completed successfully');
+      }
+    } catch (err) {
+      logger.error('APP', 'Export failed', {
+        error: err instanceof Error ? err.message : String(err),
+        errorStack: err instanceof Error ? err.stack : undefined
+      });
+    }
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        setDebugPanelOpen(true);
+        logger.info('APP', 'Debug panel opened via keyboard shortcut');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  if (loading) {
+    logger.debug('APP', 'Showing loading state');
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        background: 'var(--gradient-primary)',
+        color: 'white'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="snob-avatar pulse" style={{ margin: '0 auto 24px' }}>
+            <div style={{ fontSize: '3rem' }}></div>
+          </div>
+          <h2>The Snob is analyzing your taste...</h2>
+          <p>This may take a moment for large datasets</p>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => setDebugPanelOpen(true)}
+            style={{ marginTop: '16px' }}
+          >
+            Open Debug Panel
+          </button>
         </div>
       </div>
-      {stats ? <SceneDeck scenes={scenes} /> : <div>Loading…</div>}
-      <DebugDock open={dockOpen} onClose={()=>setDockOpen(false)} info={{
-        profile, etag: meta.etag, xhash: meta.xhash, timings: meta.timings, latencyMs: meta.latency, rows: stats?.meta.rows, window: stats?.meta.window, debug: meta.debug
-      }}/>
-      <div style={{position:"fixed", bottom:16, left:16}} className="muted">Press <b>D</b> for Debug Dock • Click a card, then “PNG (this card)”</div>
-    </div>
+    );
+  }
+
+  if (error) {
+    logger.error('APP', 'Showing error state', { error });
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        background: 'var(--gradient-secondary)',
+        color: 'white',
+        padding: '40px'
+      }}>
+        <div style={{ textAlign: 'center', maxWidth: '500px' }}>
+          <h2>Oops! The Snob encountered an error</h2>
+          <p style={{ marginBottom: '24px' }}>{error}</p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn" onClick={() => setCurrentPage('welcome')}>
+              Start Over
+            </button>
+            <button className="btn btn-secondary" onClick={() => setDebugPanelOpen(true)}>
+              Debug Panel
+            </button>
+            <button className="btn btn-secondary" onClick={() => window.location.reload()}>
+              Reload Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <div ref={containerRef}>
+        {/* Debug Panel Toggle */}
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 1000
+        }}>
+          <button
+            onClick={() => setDebugPanelOpen(true)}
+            style={{
+              background: 'rgba(0,0,0,0.7)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '50px',
+              height: '50px',
+              cursor: 'pointer',
+              fontSize: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="Open Debug Panel (Ctrl+Shift+D)"
+          >
+            
+          </button>
+        </div>
+
+        {currentPage === 'welcome' && (
+          <WelcomePage onGetStarted={handleGetStarted} />
+        )}
+        
+        {currentPage === 'summary' && stats && (
+          <SummaryDashboard stats={stats} onNext={handleNext} />
+        )}
+        
+        {currentPage === 'rarity' && stats && (
+          <RarityAnalysis 
+            stats={stats} 
+            onNext={handleNext} 
+            onBack={handleBack} 
+          />
+        )}
+        
+        {currentPage === 'taste' && stats && (
+          <TasteProfile 
+            stats={stats} 
+            onBack={handleBack} 
+            onExport={handleExport} 
+          />
+        )}
+
+        <DebugPanel 
+          isOpen={debugPanelOpen} 
+          onClose={() => setDebugPanelOpen(false)} 
+        />
+      </div>
+    </ErrorBoundary>
   );
 }
