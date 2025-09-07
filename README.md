@@ -27,22 +27,29 @@ Snobify is built as a full-stack application with a clear separation of concerns
 Snobify/
 ├── app/                    # React frontend (Vite + TypeScript)
 │   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── api/           # API client with error handling
-│   │   ├── utils/         # Utilities and debug logger
+│   │   ├── components/     # React components & UI
+│   │   ├── api/           # API client & connection management
+│   │   ├── engine/        # Scene engine & transitions
+│   │   ├── hooks/         # Custom React hooks
+│   │   ├── utils/         # Utilities & debug logger
 │   │   └── types.ts       # TypeScript type definitions
 │   └── package.json
 ├── server/                 # Node.js backend (Fastify + TypeScript)
 │   ├── src/
 │   │   ├── compute/       # Data analysis algorithms
 │   │   ├── ingest/        # CSV parsing and data processing
-│   │   ├── routes/        # API endpoints
-│   │   └── index.ts       # Server entry point
+│   │   ├── ml/            # Machine learning components
+│   │   ├── middleware/    # Connection & performance middleware
+│   │   ├── health/        # Health checking system
+│   │   ├── errors/        # Error handling
+│   │   └── server.ts      # Main server entry point
 │   └── package.json
 ├── profiles/              # User data storage
 │   └── default/
 │       └── history.csv    # Spotify export data
+├── Music data/            # Spotify playlist exports
 ├── scripts/               # PowerShell automation scripts
+├── common/                # Shared types and utilities
 └── docs/                  # Documentation
 ```
 <code_block_to_apply_changes_from>
