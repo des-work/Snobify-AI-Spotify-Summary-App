@@ -43,7 +43,11 @@ export interface MoodPredictionResult {
       // Initialize TensorFlow.js for advanced ML capabilities
       try {
         // Dynamic import to avoid build-time errors if TensorFlow is not installed
-        const tf = await import('@tensorflow/tfjs-node').catch(() => null);
+        const tf = await import('@tensorflow/tfjs-node').catch(() => {
+          console.log('TensorFlow.js not available, using heuristic models only');
+          return null;
+        });
+        
         if (tf) {
           console.log('TensorFlow.js initialized successfully');
           

@@ -323,11 +323,11 @@ export class StartupValidator {
       console.log('🤖 Validating ML modules...');
       
       const mlModules = [
-        { name: 'MoodPredictor', path: './ml/moodPredictor.js' },
-        { name: 'GenreClassifier', path: './ml/genreClassifier.js' },
-        { name: 'ArtistClusterer', path: './ml/artistClusterer.js' },
-        { name: 'RecommendationEngine', path: './ml/recommendationEngine.js' },
-        { name: 'MusicMLAnalyzer', path: './ml/analyzer.js' }
+        { name: 'MoodPredictor', path: '../ml/moodPredictor.js' },
+        { name: 'GenreClassifier', path: '../ml/genreClassifier.js' },
+        { name: 'ArtistClusterer', path: '../ml/artistClusterer.js' },
+        { name: 'RecommendationEngine', path: '../ml/recommendationEngine.js' },
+        { name: 'MusicMLAnalyzer', path: '../ml/analyzer.js' }
       ];
 
       const loadedModules: string[] = [];

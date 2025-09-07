@@ -9,15 +9,15 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $root = Split-Path -Parent $scriptDir
 
-Write-Host "🎵 Starting Snobify Music Analysis App..." -ForegroundColor Cyan
-Write-Host "📁 Project Root: $root" -ForegroundColor Gray
-Write-Host "👤 Profile: $Profile" -ForegroundColor Gray
+Write-Host "Starting Snobify Music Analysis App..." -ForegroundColor Cyan
+Write-Host "Project Root: $root" -ForegroundColor Gray
+Write-Host "Profile: $Profile" -ForegroundColor Gray
 Write-Host ""
 
 # Check if Node.js is installed
 try {
     $nodeVersion = node --version 2>$null
-    Write-Host "✅ Node.js version: $nodeVersion" -ForegroundColor Green
+    Write-Host "Node.js version: $nodeVersion" -ForegroundColor Green
 } catch {
     Write-Host "❌ Node.js not found. Please install Node.js first." -ForegroundColor Red
     Read-Host "Press Enter to exit"
@@ -108,7 +108,7 @@ try {
     # Check if server job is still running
     if ($serverJob.State -eq "Running") {
         Write-Host "✅ Server started successfully" -ForegroundColor Green
-        Write-Host "🌐 Server should be available at: http://localhost:3000" -ForegroundColor Cyan
+        Write-Host "🌐 Server should be available at: http://127.0.0.1:8899" -ForegroundColor Cyan
         Write-Host ""
         
         # Start frontend
@@ -135,5 +135,5 @@ try {
 }
 
 Write-Host ""
-Write-Host "👋 Snobify session ended. Press Enter to close this window." -ForegroundColor Cyan
+Write-Host "Snobify session ended. Press Enter to close this window." -ForegroundColor Cyan
 Read-Host

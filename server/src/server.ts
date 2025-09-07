@@ -7,8 +7,15 @@ import path from "path";
 import fs from "fs";
 import { scoreOnePlaylist, rareEligibilityFromPlaylists } from "./compute/playlistScore.js";
 
-import Fastify from "fastify";
+import Fastify, { FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
+
+// Extend FastifyRequest to include timer
+declare module 'fastify' {
+  interface FastifyRequest {
+    timer?: Timer;
+  }
+}
 
 import { ConfigSchema, type AppConfig } from "./config/schema.js";
 import { logger } from "./observability/logger.js";
@@ -36,6 +43,11 @@ import { RecommendationEngine } from "./ml/recommendationEngine.js";
 import { HealthChecker } from "./health/healthCheck.js";
 import { errorHandler } from "./errors/errorHandler.js";
 import { StartupValidator } from "./startup/startupValidator.js";
+import { 
+  connectionMiddleware, 
+  connectionTrackingMiddleware, 
+  performanceHeadersMiddleware 
+} from "./middleware/connectionMiddleware.js";
 
 // ============================================================================
 // SERVER INITIALIZATION
@@ -199,8 +211,7 @@ async function createFastifyServer(): Promise<any> {
   
   const app = Fastify({
     logger: {
-      level: 'info',
-      prettyPrint: true
+      level: 'info'
     },
     requestIdHeader: 'x-request-id',
     requestIdLogLabel: 'reqId',
@@ -218,11 +229,15 @@ async function createFastifyServer(): Promise<any> {
     await errorHandler.handleAsyncError(error, request, reply);
   });
 
-  // Request logging
+  // Enhanced request handling with connection tracking
   app.addHook('onRequest', async (request, reply) => {
     healthChecker.incrementConnections();
     const timer = new Timer();
     request.timer = timer;
+    reply.header("x-req-id", request.id);
+    
+    // Connection tracking
+    await connectionTrackingMiddleware(request, reply);
   });
 
   app.addHook('onResponse', async (request, reply) => {
@@ -230,6 +245,9 @@ async function createFastifyServer(): Promise<any> {
     if (request.timer) {
       reply.header("Server-Timing", request.timer.header());
     }
+    
+    // Performance headers
+    await performanceHeadersMiddleware(request, reply);
   });
 
   return app;
@@ -242,10 +260,22 @@ async function createFastifyServer(): Promise<any> {
 async function setupAPIRoutes(app: any, config: AppConfig): Promise<void> {
   console.log('🛣️ Setting up API routes...');
 
-  // Health check endpoint
+  // Enhanced health check endpoint
   app.get("/health", async (request, reply) => {
     const healthStatus = await healthChecker.checkHealth();
-    reply.send(healthStatus);
+    const connectionMetrics = connectionMiddleware.getMetrics();
+    const connectionHealth = connectionMiddleware.getHealthStatus();
+    
+    reply.send({
+      ...healthStatus,
+      connections: {
+        metrics: connectionMetrics,
+        health: connectionHealth,
+        stats: connectionMiddleware.getConnectionStats(),
+        performance: connectionMiddleware.getPerformanceStats(),
+      },
+      timestamp: new Date().toISOString(),
+    });
   });
 
   // Debug endpoint

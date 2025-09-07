@@ -2,8 +2,10 @@ import "./styles.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchStats, fetchDebug } from "./api/client";
 import type { Stats } from "./types";
+import dataFlowManager from "./data/dataFlowManager";
 import ErrorBoundary from "./components/ErrorBoundary";
 import DebugPanel from "./components/DebugPanel";
+import { ConnectionStatus } from "./components/ConnectionStatus";
 import WelcomePage from "./components/WelcomePage";
 import SummaryDashboard from "./components/SummaryDashboard";
 import RarityAnalysis from "./components/RarityAnalysis";
@@ -45,13 +47,23 @@ export default function App(){
     logger.debug('APP', `Loading stats for page: ${currentPage}`, { profile, currentPage });
     
     try {
-      const { data } = await fetchStats(profile);
+      // Use data flow manager for intelligent caching and error handling
+      const { data } = await dataFlowManager.fetchData(
+        `stats_${profile}_${currentPage}`,
+        () => fetchStats(profile),
+        {
+          cacheTimeout: 300000, // 5 minutes
+          fallbackData: { stats: null },
+        }
+      );
+      
       setStats(data.stats);
       
       logger.info('APP', 'Stats loaded successfully', {
         profile,
         currentPage,
-        trackCount: data.stats?.tracks?.length || 0
+        trackCount: data.stats?.tracks?.length || 0,
+        cacheStats: dataFlowManager.getCacheStats(),
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
@@ -61,7 +73,8 @@ export default function App(){
         profile,
         currentPage,
         error: errorMessage,
-        errorStack: err instanceof Error ? err.stack : undefined
+        errorStack: err instanceof Error ? err.stack : undefined,
+        cacheStats: dataFlowManager.getCacheStats(),
       });
     } finally {
       setLoading(false);
@@ -177,11 +190,14 @@ export default function App(){
   return (
     <ErrorBoundary>
       <div ref={containerRef}>
+        {/* Connection Status */}
+        <ConnectionStatus showDetails={true} position="top-right" />
+        
         {/* Debug Panel Toggle */}
         <div style={{
           position: 'fixed',
           top: '20px',
-          right: '20px',
+          right: '80px',
           zIndex: 1000
         }}>
           <button
@@ -201,7 +217,7 @@ export default function App(){
             }}
             title="Open Debug Panel (Ctrl+Shift+D)"
           >
-            
+            🐛
           </button>
         </div>
 
