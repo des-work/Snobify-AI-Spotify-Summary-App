@@ -1,0 +1,15 @@
+{
+  "name": "snobify",
+  "version": "1.0.0",
+  "description": "Snobify Music Analysis App",
+  "scripts": {
+    "start": "start-snobify.bat",
+    "dev": "start-snobify.bat",
+    "server": "cd server && npm run dev",
+    "app": "cd app && npm run dev",
+    "install-all": "cd server && npm install && cd ../app && npm install"
+  },
+  "keywords": ["music", "analysis", "spotify", "snobify"],
+  "author": "Snobify Team",
+  "license": "MIT"
+}
