@@ -3,7 +3,7 @@
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
-import connectionManager, { ConnectionStatus } from '../api/connectionManager';
+import connectionManager from '../api/connectionManager';
 import { logger } from '../utils/debugLogger';
 
 interface ConnectionStatusProps {
@@ -12,12 +12,20 @@ interface ConnectionStatusProps {
   compact?: boolean;
 }
 
-export default function ConnectionStatus({ 
+interface ConnectionStatusData {
+  isConnected: boolean;
+  lastCheck: Date;
+  latency: number;
+  errors: number;
+  uptime: number;
+}
+
+export default function ConnectionStatusComponent({ 
   showDetails = false, 
   position = 'top-right',
   compact = false 
 }: ConnectionStatusProps) {
-  const [status, setStatus] = useState<ConnectionStatus>(connectionManager.getStatus());
+  const [status, setStatus] = useState<ConnectionStatusData>(connectionManager.getStatus());
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -155,7 +163,7 @@ export default function ConnectionStatus({
 // ============================================================================
 
 export function useConnectionStatus() {
-  const [status, setStatus] = useState<ConnectionStatus>(connectionManager.getStatus());
+  const [status, setStatus] = useState<ConnectionStatusData>(connectionManager.getStatus());
 
   useEffect(() => {
     const unsubscribe = connectionManager.addConnectionListener(setStatus);

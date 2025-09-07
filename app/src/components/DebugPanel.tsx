@@ -4,9 +4,12 @@ import { logger } from '../utils/debugLogger';
 interface DebugPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  debugInfo?: any;
+  onRefresh?: () => void;
+  onRetry?: () => void;
 }
 
-export default function DebugPanel({ isOpen, onClose }: DebugPanelProps) {
+export default function DebugPanel({ isOpen, onClose, debugInfo, onRefresh, onRetry }: DebugPanelProps) {
   const [logs, setLogs] = useState(logger.getLogs());
   const [filter, setFilter] = useState<string>('');
   const [levelFilter, setLevelFilter] = useState<string>('all');

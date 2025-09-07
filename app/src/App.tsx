@@ -5,7 +5,10 @@ import type { Stats } from "./types";
 import dataFlowManager from "./data/dataFlowManager";
 import ErrorBoundary from "./components/ErrorBoundary";
 import DebugPanel from "./components/DebugPanel";
-import { ConnectionStatus } from "./components/ConnectionStatus";
+import ConnectionStatusComponent from "./components/ConnectionStatus";
+import AuraBackground, { AuraOverlay } from "./components/AuraBackground";
+import { LoadingSpinner, ErrorState, EmptyState, LoadingStyles } from "./components/LoadingStates";
+import { useStatsData } from "./hooks/useDataLoader";
 import WelcomePage from "./components/WelcomePage";
 import SummaryDashboard from "./components/SummaryDashboard";
 import RarityAnalysis from "./components/RarityAnalysis";
@@ -18,12 +21,19 @@ type AppPage = 'welcome' | 'summary' | 'rarity' | 'taste';
 
 export default function App(){
   const [profile, setProfile] = useState("default");
-  const [stats, setStats] = useState<Stats|null>(null);
   const [currentPage, setCurrentPage] = useState<AppPage>('welcome');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Use the enhanced data loader hook
+  const {
+    data: stats,
+    loading,
+    error,
+    retry,
+    refresh,
+    debugInfo,
+  } = useStatsData(profile);
 
   useEffect(() => {
     logger.info('APP', 'Snobify app initialized', {
@@ -35,51 +45,14 @@ export default function App(){
   }, []);
 
   useEffect(() => {
-    if (currentPage !== 'welcome') {
-      loadStats();
-    }
-  }, [currentPage, profile]);
-
-  const loadStats = async () => {
-    setLoading(true);
-    setError(null);
-    
-    logger.debug('APP', `Loading stats for page: ${currentPage}`, { profile, currentPage });
-    
-    try {
-      // Use data flow manager for intelligent caching and error handling
-      const { data } = await dataFlowManager.fetchData(
-        `stats_${profile}_${currentPage}`,
-        () => fetchStats(profile),
-        {
-          cacheTimeout: 300000, // 5 minutes
-          fallbackData: { stats: null },
-        }
-      );
-      
-      setStats(data.stats);
-      
-      logger.info('APP', 'Stats loaded successfully', {
-        profile,
-        currentPage,
-        trackCount: data.stats?.tracks?.length || 0,
-        cacheStats: dataFlowManager.getCacheStats(),
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
-      setError(errorMessage);
-      
-      logger.error('APP', 'Failed to load stats', {
-        profile,
-        currentPage,
-        error: errorMessage,
-        errorStack: err instanceof Error ? err.stack : undefined,
-        cacheStats: dataFlowManager.getCacheStats(),
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    logger.info('APP', 'Snobify app initialized', {
+      profile,
+      currentPage,
+      userAgent: navigator.userAgent,
+      url: window.location.href,
+      debugInfo,
+    });
+  }, [profile, currentPage, debugInfo]);
 
   const handleGetStarted = () => {
     logger.info('APP', 'User started the app flow');
@@ -189,9 +162,20 @@ export default function App(){
 
   return (
     <ErrorBoundary>
-      <div ref={containerRef}>
+      <style>{LoadingStyles}</style>
+      
+      {/* Aura Background */}
+      <AuraBackground intensity="medium" speed={0.8} />
+      <AuraOverlay />
+      
+      <div ref={containerRef} style={{
+        position: 'relative',
+        zIndex: 1,
+        minHeight: '100vh',
+        backgroundColor: 'transparent',
+      }}>
         {/* Connection Status */}
-        <ConnectionStatus showDetails={true} position="top-right" />
+        <ConnectionStatusComponent showDetails={true} position="top-right" />
         
         {/* Debug Panel Toggle */}
         <div style={{
@@ -213,7 +197,17 @@ export default function App(){
               fontSize: '20px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              backdropFilter: 'blur(10px)',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(0,0,0,0.9)';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'rgba(0,0,0,0.7)';
+              e.currentTarget.style.transform = 'scale(1)';
             }}
             title="Open Debug Panel (Ctrl+Shift+D)"
           >
@@ -225,29 +219,83 @@ export default function App(){
           <WelcomePage onGetStarted={handleGetStarted} />
         )}
         
-        {currentPage === 'summary' && stats && (
-          <SummaryDashboard stats={stats} onNext={handleNext} />
+        {currentPage === 'summary' && (
+          <>
+            {loading && <LoadingSpinner size="large" text="Loading your music data..." />}
+            {error && <ErrorState error={error} onRetry={retry} />}
+            {!loading && !error && !stats && (
+              <EmptyState
+                title="No Data Available"
+                description="We couldn't find any music data for your profile. Make sure your music files are properly imported."
+                icon="🎵"
+                action={{
+                  text: "Refresh Data",
+                  onClick: refresh,
+                }}
+              />
+            )}
+            {!loading && !error && stats && (
+              <SummaryDashboard stats={stats} onNext={handleNext} />
+            )}
+          </>
         )}
         
-        {currentPage === 'rarity' && stats && (
-          <RarityAnalysis 
-            stats={stats} 
-            onNext={handleNext} 
-            onBack={handleBack} 
-          />
+        {currentPage === 'rarity' && (
+          <>
+            {loading && <LoadingSpinner size="large" text="Analyzing music rarity..." />}
+            {error && <ErrorState error={error} onRetry={retry} />}
+            {!loading && !error && !stats && (
+              <EmptyState
+                title="No Data Available"
+                description="We need your music data to analyze rarity patterns."
+                icon="💎"
+                action={{
+                  text: "Refresh Data",
+                  onClick: refresh,
+                }}
+              />
+            )}
+            {!loading && !error && stats && (
+              <RarityAnalysis 
+                stats={stats} 
+                onNext={handleNext} 
+                onBack={handleBack} 
+              />
+            )}
+          </>
         )}
         
-        {currentPage === 'taste' && stats && (
-          <TasteProfile 
-            stats={stats} 
-            onBack={handleBack} 
-            onExport={handleExport} 
-          />
+        {currentPage === 'taste' && (
+          <>
+            {loading && <LoadingSpinner size="large" text="Building your taste profile..." />}
+            {error && <ErrorState error={error} onRetry={retry} />}
+            {!loading && !error && !stats && (
+              <EmptyState
+                title="No Data Available"
+                description="We need your music data to build your taste profile."
+                icon="🎨"
+                action={{
+                  text: "Refresh Data",
+                  onClick: refresh,
+                }}
+              />
+            )}
+            {!loading && !error && stats && (
+              <TasteProfile 
+                stats={stats} 
+                onBack={handleBack} 
+                onExport={handleExport} 
+              />
+            )}
+          </>
         )}
 
         <DebugPanel 
           isOpen={debugPanelOpen} 
-          onClose={() => setDebugPanelOpen(false)} 
+          onClose={() => setDebugPanelOpen(false)}
+          debugInfo={debugInfo}
+          onRefresh={refresh}
+          onRetry={retry}
         />
       </div>
     </ErrorBoundary>
