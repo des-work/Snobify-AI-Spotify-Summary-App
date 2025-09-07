@@ -4,9 +4,11 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/server.ts",
+    "dev-old": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js"
+    "start": "node dist/server.js",
+    "start-old": "node dist/index.js"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
