@@ -23,10 +23,6 @@ export async function readAllCsvs(dir: string): Promise<RowEx[]> {
   return out;
 }
 
-import fs from "node:fs";
-import path from "node:path";
-import { readCsv } from "./readCsv.js";
-
 /** Returns Map<playlistName, rows[]> where name = CSV base filename */
 export async function readPlaylistsAsMap(dir: string): Promise<Map<string, any[]>> {
   const entries = fs.readdirSync(dir, { withFileTypes: true });

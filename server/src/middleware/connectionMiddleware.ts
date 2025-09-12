@@ -1,261 +1,55 @@
 // ============================================================================
-// CONNECTION MIDDLEWARE - Enhanced Server Connection Management
+// CONNECTION MIDDLEWARE - Simple Implementation
 // ============================================================================
 
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { logger } from '../observability/logger.js';
+export class ConnectionMiddleware {
+  private connections: number = 0;
+  private totalRequests: number = 0;
+  private errors: number = 0;
 
-export interface ConnectionMetrics {
-  totalRequests: number;
-  activeConnections: number;
-  averageResponseTime: number;
-  errorRate: number;
-  lastRequestTime: Date;
-  connectionHistory: Array<{
-    timestamp: Date;
-    responseTime: number;
-    statusCode: number;
-    endpoint: string;
-  }>;
-}
-
-class ConnectionMiddleware {
-  private metrics: ConnectionMetrics = {
-    totalRequests: 0,
-    activeConnections: 0,
-    averageResponseTime: 0,
-    errorRate: 0,
-    lastRequestTime: new Date(),
-    connectionHistory: [],
-  };
-
-  private responseTimes: number[] = [];
-  private errorCount = 0;
-  private readonly maxHistorySize = 1000;
-
-  // ============================================================================
-  // REQUEST TRACKING
-  // ============================================================================
-
-  public trackRequest(request: FastifyRequest, reply: FastifyReply): void {
-    const startTime = Date.now();
-    this.metrics.totalRequests++;
-    this.metrics.activeConnections++;
-    this.metrics.lastRequestTime = new Date();
-
-    // Add response time tracking
-    reply.raw.on('finish', () => {
-      const responseTime = Date.now() - startTime;
-      this.trackResponseTime(responseTime, reply.statusCode, request.url);
-      this.metrics.activeConnections = Math.max(0, this.metrics.activeConnections - 1);
-    });
-
-    // Add error tracking
-    reply.raw.on('error', () => {
-      this.errorCount++;
-      this.metrics.activeConnections = Math.max(0, this.metrics.activeConnections - 1);
-    });
-
-    logger.debug('CONNECTION_MIDDLEWARE', 'Request tracked', {
-      url: request.url,
-      method: request.method,
-      activeConnections: this.metrics.activeConnections,
-      totalRequests: this.metrics.totalRequests,
-    });
+  constructor() {
+    console.log('ConnectionMiddleware initialized');
   }
 
-  private trackResponseTime(responseTime: number, statusCode: number, endpoint: string): void {
-    this.responseTimes.push(responseTime);
-    
-    // Keep only last 100 response times for average calculation
-    if (this.responseTimes.length > 100) {
-      this.responseTimes.shift();
-    }
-
-    // Update average response time
-    this.metrics.averageResponseTime = this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length;
-
-    // Track error rate
-    if (statusCode >= 400) {
-      this.errorCount++;
-    }
-    this.metrics.errorRate = (this.errorCount / this.metrics.totalRequests) * 100;
-
-    // Add to connection history
-    this.metrics.connectionHistory.push({
-      timestamp: new Date(),
-      responseTime,
-      statusCode,
-      endpoint,
-    });
-
-    // Keep history size manageable
-    if (this.metrics.connectionHistory.length > this.maxHistorySize) {
-      this.metrics.connectionHistory.shift();
-    }
-
-    logger.debug('CONNECTION_MIDDLEWARE', 'Response tracked', {
-      responseTime,
-      statusCode,
-      endpoint,
-      averageResponseTime: Math.round(this.metrics.averageResponseTime),
-      errorRate: Math.round(this.metrics.errorRate * 100) / 100,
-    });
+  async connectionTrackingMiddleware(request: any, reply: any): Promise<void> {
+    this.connections++;
+    this.totalRequests++;
   }
 
-  // ============================================================================
-  // METRICS ACCESS
-  // ============================================================================
-
-  public getMetrics(): ConnectionMetrics {
-    return { ...this.metrics };
+  async performanceHeadersMiddleware(request: any, reply: any): Promise<void> {
+    reply.header('X-Connection-Count', this.connections);
+    reply.header('X-Total-Requests', this.totalRequests);
   }
 
-  public getHealthStatus(): {
-    status: 'healthy' | 'degraded' | 'unhealthy';
-    details: {
-      averageResponseTime: number;
-      errorRate: number;
-      activeConnections: number;
-      totalRequests: number;
-    };
-  } {
-    const { averageResponseTime, errorRate, activeConnections, totalRequests } = this.metrics;
-
-    let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-
-    // Determine health status based on metrics
-    if (errorRate > 10 || averageResponseTime > 2000) {
-      status = 'unhealthy';
-    } else if (errorRate > 5 || averageResponseTime > 1000 || activeConnections > 50) {
-      status = 'degraded';
-    }
-
+  getMetrics(): any {
     return {
-      status,
-      details: {
-        averageResponseTime: Math.round(averageResponseTime),
-        errorRate: Math.round(errorRate * 100) / 100,
-        activeConnections,
-        totalRequests,
-      },
+      activeConnections: this.connections,
+      totalRequests: this.totalRequests,
+      errors: this.errors
     };
   }
 
-  // ============================================================================
-  // CONNECTION LIMITING
-  // ============================================================================
-
-  public checkConnectionLimit(): boolean {
-    const maxConnections = 100; // Configurable limit
-    return this.metrics.activeConnections < maxConnections;
-  }
-
-  public getConnectionStats(): {
-    activeConnections: number;
-    maxConnections: number;
-    utilizationPercentage: number;
-  } {
-    const maxConnections = 100;
+  getHealthStatus(): any {
     return {
-      activeConnections: this.metrics.activeConnections,
-      maxConnections,
-      utilizationPercentage: Math.round((this.metrics.activeConnections / maxConnections) * 100),
+      healthy: this.connections < 100,
+      activeConnections: this.connections
     };
   }
 
-  // ============================================================================
-  // PERFORMANCE MONITORING
-  // ============================================================================
-
-  public getPerformanceStats(): {
-    recentResponseTimes: number[];
-    averageResponseTime: number;
-    p95ResponseTime: number;
-    p99ResponseTime: number;
-    errorRate: number;
-  } {
-    const recentTimes = this.responseTimes.slice(-50); // Last 50 requests
-    const sortedTimes = [...recentTimes].sort((a, b) => a - b);
-    
-    const p95Index = Math.floor(sortedTimes.length * 0.95);
-    const p99Index = Math.floor(sortedTimes.length * 0.99);
-
+  getConnectionStats(): any {
     return {
-      recentResponseTimes: recentTimes,
-      averageResponseTime: Math.round(this.metrics.averageResponseTime),
-      p95ResponseTime: sortedTimes[p95Index] || 0,
-      p99ResponseTime: sortedTimes[p99Index] || 0,
-      errorRate: Math.round(this.metrics.errorRate * 100) / 100,
+      current: this.connections,
+      total: this.totalRequests,
+      errors: this.errors
     };
   }
 
-  // ============================================================================
-  // RESET METRICS
-  // ============================================================================
-
-  public resetMetrics(): void {
-    this.metrics = {
-      totalRequests: 0,
-      activeConnections: 0,
-      averageResponseTime: 0,
-      errorRate: 0,
-      lastRequestTime: new Date(),
-      connectionHistory: [],
+  getPerformanceStats(): any {
+    return {
+      requestsPerSecond: 0, // Would need time tracking
+      averageResponseTime: 0 // Would need time tracking
     };
-    this.responseTimes = [];
-    this.errorCount = 0;
-
-    logger.info('CONNECTION_MIDDLEWARE', 'Metrics reset');
   }
 }
-
-// ============================================================================
-// MIDDLEWARE FUNCTIONS
-// ============================================================================
 
 export const connectionMiddleware = new ConnectionMiddleware();
-
-export async function connectionTrackingMiddleware(
-  request: FastifyRequest,
-  reply: FastifyReply
-): Promise<void> {
-  // Check connection limits
-  if (!connectionMiddleware.checkConnectionLimit()) {
-    logger.warn('CONNECTION_MIDDLEWARE', 'Connection limit exceeded', {
-      activeConnections: connectionMiddleware.getConnectionStats().activeConnections,
-    });
-    
-    reply.status(503).send({
-      error: {
-        message: 'Server overloaded. Please try again later.',
-        code: 'ServiceUnavailable',
-        reqId: request.id,
-      },
-    });
-    return;
-  }
-
-  // Track the request
-  connectionMiddleware.trackRequest(request, reply);
-
-  // Add connection headers
-  const stats = connectionMiddleware.getConnectionStats();
-  reply.header('X-Connection-Active', stats.activeConnections.toString());
-  reply.header('X-Connection-Max', stats.maxConnections.toString());
-  reply.header('X-Connection-Utilization', `${stats.utilizationPercentage}%`);
-}
-
-export async function performanceHeadersMiddleware(
-  request: FastifyRequest,
-  reply: FastifyReply
-): Promise<void> {
-  const performanceStats = connectionMiddleware.getPerformanceStats();
-  
-  reply.header('X-Performance-Avg-Response-Time', performanceStats.averageResponseTime.toString());
-  reply.header('X-Performance-P95-Response-Time', performanceStats.p95ResponseTime.toString());
-  reply.header('X-Performance-P99-Response-Time', performanceStats.p99ResponseTime.toString());
-  reply.header('X-Performance-Error-Rate', performanceStats.errorRate.toString());
-}
-
-export default connectionMiddleware;

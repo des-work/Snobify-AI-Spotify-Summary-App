@@ -464,7 +464,7 @@ app.get("/api/debug", async (request, reply) => {
       .sort((a,b)=>a.getTime()-b.getTime());
 
     const files = (() => {
-      try { return safeArr(fs.readdirSync(dataPath.path)).filter(f => f.toLowerCase().endsWith(".csv")).length; }
+      try { return safeArr(fs.readdirSync(dataPath.path)).filter((f: any) => f.toLowerCase().endsWith(".csv")).length; }
       catch { return 0; }
     })();
 
@@ -561,8 +561,12 @@ app.get("/api/playlist-scores", async (request, reply) => {
 });
 
 const PORT = Number(process.env.PORT || 8899);
-app.listen({ port: PORT, host: "127.0.0.1" }).then(()=>{
+try {
+  await app.listen({ port: PORT, host: "127.0.0.1" });
   console.log(`Snobify server listening on http://127.0.0.1:${PORT}`);
   console.log(`ML Analysis enabled: ${CONFIG.ml?.enabled || false}`);
   console.log(`Data tracking: ${JSON.stringify(CONFIG.ml?.dataTracking || {})}`);
-}).catch(err=>{ console.error(err); process.exit(1); });
+} catch (err) {
+  console.error('Server startup failed:', err);
+  process.exit(1);
+}

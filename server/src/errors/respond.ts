@@ -1,5 +1,5 @@
 import { FastifyReply } from "fastify";
-import ERROR_CODE from "../../../common/errors.js";
+import ERROR_CODE from "../common/errors.js";
 
 export function sendError(
   reply: FastifyReply,
