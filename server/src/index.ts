@@ -504,7 +504,7 @@ app.get("/api/taste-profile", async (request, reply) => {
       rows = await readCsv(dataPath.path);
     }
 
-    const rowsAll = await rows; timer.lap("read");
+    const rowsAll = rows; timer.lap("read");
     const tp = buildTasteProfile(Array.isArray(rowsAll) ? rowsAll : [], {
       nichePopularityThreshold: 31,   // Spotify-9 (more niche)
       playWeight: 0.7, uniqueWeight: 0.3,

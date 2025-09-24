@@ -1,4 +1,4 @@
-﻿# Snobify 😏🎧
+﻿﻿# Snobify 😏🎧
 
 > Your Music Taste, Judged
 
@@ -42,7 +42,7 @@ Snobify/
 │   │   ├── middleware/    # Connection & performance middleware
 │   │   ├── health/        # Health checking system
 │   │   ├── errors/        # Error handling
-│   │   └── server.ts      # Main server entry point
+│   │   └── index.ts       # Main server entry point
 │   └── package.json
 ├── profiles/              # User data storage
 │   └── default/
@@ -74,8 +74,8 @@ server/src/
 │   ├── tasteProfile.ts          # Taste profile generation
 │   └── libraryAnalysis.ts       # Library-wide analysis
 ├── ingest/
-│   ├── readCsv.ts               # CSV parsing
-│   └── readAll.ts               # Multi-file CSV processing
+│   ├── readCsv.ts               # CSV parsing utility
+│   └── readAll.ts               # Multi-file CSV processor
 └── index.ts                     # Server entry point
 ```
 
