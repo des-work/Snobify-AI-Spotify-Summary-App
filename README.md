@@ -82,10 +82,16 @@ server/src/
 ### API Endpoints
 
 - `GET /api/profiles` - List available profiles
-- `GET /api/stats` - Get comprehensive listening statistics
+- `GET /api/stats` - Get core listening statistics
 - `GET /api/debug` - Get detailed debug information
 - `GET /api/taste-profile` - Get taste profile analysis
 - `GET /api/playlist-scores` - Get playlist ratings
+- `GET /api/ml-analysis` - Get combined ML analysis results
+- `GET /api/genre-classification` - Classify tracks by genre
+- `GET /api/mood-prediction` - Predict mood for tracks
+- `POST /api/mood-training` - Train the mood prediction model
+- `GET /api/artist-clustering` - Cluster artists based on listening habits
+- `GET /api/recommendations` - Generate track recommendations
 - `GET /metrics` - Server metrics (Prometheus format)
 
 ### Debugging Features
@@ -101,20 +107,20 @@ Snobify includes comprehensive debugging tools:
 
 ### Running in Development
 
-```powershell
-# Start backend in development mode
-cd server
-npm run dev
+```bash
+# Install all dependencies for both app and server
+npm run install-all
 
-# Start frontend in development mode
-cd app
-npm run dev
+# Start both the frontend and backend servers concurrently
+npm start
 
-# Run tests
-npm test
+# --- Alternatively, run them in separate terminals ---
 
-# Build for production
-npm run build
+# Run the backend server
+npm run server
+
+# Run the frontend app
+npm run app
 ```
 
 ## 🤝 Contributing

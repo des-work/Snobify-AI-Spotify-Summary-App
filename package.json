@@ -2,9 +2,11 @@
   "name": "snobify",
   "version": "1.0.0",
   "description": "Snobify Music Analysis App",
+  "private": true,
   "scripts": {
-    "start": "start-snobify.bat",
-    "dev": "start-snobify.bat",
+    "start": "npm-run-all --parallel dev:*",
+    "dev:server": "npm run server",
+    "dev:app": "npm run app",
     "server": "cd server && npm run dev",
     "app": "cd app && npm run dev",
     "install-all": "cd server && npm install && cd ../app && npm install"
