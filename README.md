@@ -81,10 +81,7 @@ server/src/
 
 ### API Endpoints
 
-- `GET /api/profiles` - List available profiles
-- `GET /api/stats` - Get core listening statistics
-- `GET /api/debug` - Get detailed debug information
-- `GET /api/taste-profile` - Get taste profile analysis
+- `GET /api/health` - Check the server's health status
 - `GET /api/playlist-scores` - Get playlist ratings
 - `GET /api/ml-analysis` - Get combined ML analysis results
 - `GET /api/genre-classification` - Classify tracks by genre
@@ -150,21 +147,14 @@ npm run app
 - **React**: Functional components with hooks
 - **CSS**: Use CSS custom properties and modern features
 - **Error Handling**: Always include proper error boundaries
-- **Logging**: Use the debug logger for all operations
 
 ### Testing
-
-```powershell
-# Run all tests
-npm test
-
-# Run specific test suite
-npm run test:unit
-npm run test:integration
-
-# Run with coverage
-npm run test:coverage
-```
+> Note: Test scripts are not yet configured in the root `package.json`. To run tests, you will need to navigate to the `app` or `server` directory and run their respective test commands.
+>
+> ```bash
+> # Example for running server tests
+> cd server && npm test
+> ```
 
 ## 📄 License
 
