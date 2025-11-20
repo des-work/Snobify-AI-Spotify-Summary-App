@@ -6,7 +6,7 @@ import dataFlowManager from "./data/dataFlowManager";
 import ErrorBoundary from "./components/ErrorBoundary";
 import DebugPanel from "./components/DebugPanel";
 import ConnectionStatusComponent from "./components/ConnectionStatus";
-import AuraBackground, { AuraOverlay } from "./components/AuraBackground";
+import SceneContainer from "./components/3d/SceneContainer";
 import { LoadingSpinner, ErrorState, EmptyState, LoadingStyles } from "./components/LoadingStates";
 import { useStatsData } from "./hooks/useDataLoader";
 import WelcomePage from "./components/WelcomePage";
@@ -19,10 +19,10 @@ import { logger } from "./utils/debugLogger";
 
 type AppPage = 'welcome' | 'summary' | 'rarity' | 'taste';
 
-export default function App(){
+export default function App() {
   const [profile, setProfile] = useState("default");
   const [currentPage, setCurrentPage] = useState<AppPage>('welcome');
-  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+  const [debugPanelOpen, setDebugPanelOpen] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Use the enhanced data loader hook
@@ -75,7 +75,7 @@ export default function App(){
     logger.info('APP', 'User initiated export');
     try {
       if (containerRef.current && stats) {
-        await exportPdf(containerRef.current, `Snobify_${profile}_${stats.meta.hash.slice(0,8)}`);
+        await exportPdf(containerRef.current, `Snobify_${profile}_${stats.meta.hash.slice(0, 8)}`);
         logger.info('APP', 'Export completed successfully');
       }
     } catch (err) {
@@ -100,74 +100,65 @@ export default function App(){
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  if (loading) {
-    logger.debug('APP', 'Showing loading state');
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: 'var(--gradient-primary)',
-        color: 'white'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div className="snob-avatar pulse" style={{ margin: '0 auto 24px' }}>
-            <div style={{ fontSize: '3rem' }}></div>
-          </div>
-          <h2>The Snob is analyzing your taste...</h2>
-          <p>This may take a moment for large datasets</p>
-          <button 
-            className="btn btn-secondary" 
-            onClick={() => setDebugPanelOpen(true)}
-            style={{ marginTop: '16px' }}
-          >
-            Open Debug Panel
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    logger.error('APP', 'Showing error state', { error });
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: 'var(--gradient-secondary)',
-        color: 'white',
-        padding: '40px'
-      }}>
-        <div style={{ textAlign: 'center', maxWidth: '500px' }}>
-          <h2>Oops! The Snob encountered an error</h2>
-          <p style={{ marginBottom: '24px' }}>{error}</p>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn" onClick={() => setCurrentPage('welcome')}>
-              Start Over
-            </button>
-            <button className="btn btn-secondary" onClick={() => setDebugPanelOpen(true)}>
-              Debug Panel
-            </button>
-            <button className="btn btn-secondary" onClick={() => window.location.reload()}>
-              Reload Page
+  // Render content based on state
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          color: 'white'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div className="snob-avatar pulse" style={{ margin: '0 auto 24px' }}>
+              <div style={{ fontSize: '3rem' }}></div>
+            </div>
+            <h2>The Snob is analyzing your taste...</h2>
+            <p>This may take a moment for large datasets</p>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setDebugPanelOpen(true)}
+              style={{ marginTop: '16px' }}
+            >
+              Open Debug Panel
             </button>
           </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <ErrorBoundary>
-      <style>{LoadingStyles}</style>
-      
-      {/* Aura Background */}
-      <AuraBackground intensity="medium" speed={0.8} />
-      <AuraOverlay />
-      
+    if (error) {
+      return (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          color: 'white',
+          padding: '40px'
+        }}>
+          <div style={{ textAlign: 'center', maxWidth: '500px' }}>
+            <h2>Oops! The Snob encountered an error</h2>
+            <p style={{ marginBottom: '24px' }}>{error}</p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button className="btn" onClick={() => setCurrentPage('welcome')}>
+                Start Over
+              </button>
+              <button className="btn btn-secondary" onClick={() => setDebugPanelOpen(true)}>
+                Debug Panel
+              </button>
+              <button className="btn btn-secondary" onClick={() => window.location.reload()}>
+                Reload Page
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
       <div ref={containerRef} style={{
         position: 'relative',
         zIndex: 1,
@@ -176,7 +167,7 @@ export default function App(){
       }}>
         {/* Connection Status */}
         <ConnectionStatusComponent showDetails={true} position="top-right" />
-        
+
         {/* Debug Panel Toggle */}
         <div style={{
           position: 'fixed',
@@ -218,12 +209,10 @@ export default function App(){
         {currentPage === 'welcome' && (
           <WelcomePage onGetStarted={handleGetStarted} />
         )}
-        
+
         {currentPage === 'summary' && (
           <>
-            {loading && <LoadingSpinner size="large" text="Loading your music data..." />}
-            {error && <ErrorState error={error} onRetry={retry} />}
-            {!loading && !error && !stats && (
+            {!stats && (
               <EmptyState
                 title="No Data Available"
                 description="We couldn't find any music data for your profile. Make sure your music files are properly imported."
@@ -234,17 +223,15 @@ export default function App(){
                 }}
               />
             )}
-            {!loading && !error && stats && (
+            {stats && (
               <SummaryDashboard stats={stats} onNext={handleNext} />
             )}
           </>
         )}
-        
+
         {currentPage === 'rarity' && (
           <>
-            {loading && <LoadingSpinner size="large" text="Analyzing music rarity..." />}
-            {error && <ErrorState error={error} onRetry={retry} />}
-            {!loading && !error && !stats && (
+            {!stats && (
               <EmptyState
                 title="No Data Available"
                 description="We need your music data to analyze rarity patterns."
@@ -255,21 +242,19 @@ export default function App(){
                 }}
               />
             )}
-            {!loading && !error && stats && (
-              <RarityAnalysis 
-                stats={stats} 
-                onNext={handleNext} 
-                onBack={handleBack} 
+            {stats && (
+              <RarityAnalysis
+                stats={stats}
+                onNext={handleNext}
+                onBack={handleBack}
               />
             )}
           </>
         )}
-        
+
         {currentPage === 'taste' && (
           <>
-            {loading && <LoadingSpinner size="large" text="Building your taste profile..." />}
-            {error && <ErrorState error={error} onRetry={retry} />}
-            {!loading && !error && !stats && (
+            {!stats && (
               <EmptyState
                 title="No Data Available"
                 description="We need your music data to build your taste profile."
@@ -280,18 +265,40 @@ export default function App(){
                 }}
               />
             )}
-            {!loading && !error && stats && (
-              <TasteProfile 
-                stats={stats} 
-                onBack={handleBack} 
-                onExport={handleExport} 
+            {stats && (
+              <TasteProfile
+                stats={stats}
+                onBack={handleBack}
+                onExport={handleExport}
               />
             )}
           </>
         )}
 
-        <DebugPanel 
-          isOpen={debugPanelOpen} 
+        <DebugPanel
+          isOpen={debugPanelOpen}
+          onClose={() => setDebugPanelOpen(false)}
+          debugInfo={debugInfo}
+          onRefresh={refresh}
+          onRetry={retry}
+        />
+      </div>
+    );
+  };
+
+  return (
+    <ErrorBoundary>
+      <style>{LoadingStyles}</style>
+
+      {/* 3D Scene Background - Persistent */}
+      <SceneContainer />
+
+      {/* Content Overlay */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {renderContent()}
+
+        <DebugPanel
+          isOpen={debugPanelOpen}
           onClose={() => setDebugPanelOpen(false)}
           debugInfo={debugInfo}
           onRefresh={refresh}

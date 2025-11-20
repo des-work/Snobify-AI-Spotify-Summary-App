@@ -104,9 +104,9 @@ class ConnectionManager {
 
   private async performHealthCheck(): Promise<void> {
     const startTime = performance.now();
-    
+
     try {
-      const response = await this.makeRequest('/health', {
+      const response = await this.makeRequest('/api/health', {
         method: 'GET',
         timeout: 5000,
         skipRetry: true,
@@ -114,7 +114,7 @@ class ConnectionManager {
       });
 
       const latency = performance.now() - startTime;
-      
+
       this.updateStatus({
         isConnected: true,
         lastCheck: new Date(),
@@ -210,7 +210,7 @@ class ConnectionManager {
     } = options;
 
     const cacheKey = this.getCacheKey(url, fetchOptions);
-    
+
     // Check cache first (only for GET requests)
     if (!skipCache && fetchOptions.method === 'GET' && !fetchOptions.method) {
       const cachedData = this.getCachedData<T>(cacheKey);
@@ -221,7 +221,7 @@ class ConnectionManager {
     }
 
     let lastError: Error | null = null;
-    
+
     for (let attempt = 1; attempt <= (skipRetry ? 1 : retryAttempts); attempt++) {
       try {
         const controller = new AbortController();
@@ -244,7 +244,7 @@ class ConnectionManager {
         }
 
         const data = await response.json();
-        
+
         // Cache successful GET requests
         if (!skipCache && fetchOptions.method === 'GET' && !fetchOptions.method) {
           const etag = response.headers.get('etag') || undefined;
@@ -263,7 +263,7 @@ class ConnectionManager {
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         logger.warn('CONNECTION_MANAGER', `Request attempt ${attempt} failed`, {
           url,
           attempt,

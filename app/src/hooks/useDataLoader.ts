@@ -2,7 +2,7 @@
 // DATA LOADER HOOK - Enhanced Data Loading with Debugging
 // ============================================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchStats, fetchDebug } from '../api/client';
 import { logger } from '../utils/debugLogger';
 import dataFlowManager from '../data/dataFlowManager';
@@ -43,6 +43,10 @@ export function useDataLoader<T>(
     enableDebug = true,
   } = options;
 
+  const loadingRef = useRef(false);
+  // Keep track of retry count in ref to avoid dependency cycles
+  const retryCountRef = useRef(0);
+
   const [state, setState] = useState<DataLoaderState<T>>({
     data: null,
     loading: false,
@@ -58,17 +62,24 @@ export function useDataLoader<T>(
     },
   });
 
+  // Reset refs when dataKey changes
+  useEffect(() => {
+    loadingRef.current = false;
+    retryCountRef.current = 0;
+  }, [dataKey]);
+
   const loadData = useCallback(async (forceRefresh = false) => {
-    if (state.loading) return;
+    if (loadingRef.current) return;
 
     const startTime = performance.now();
+    loadingRef.current = true;
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
       if (enableDebug) {
         logger.debug('DATA_LOADER', `Loading data for key: ${dataKey}`, {
           forceRefresh,
-          retryCount: state.retryCount,
+          retryCount: retryCountRef.current,
         });
       }
 
@@ -84,6 +95,9 @@ export function useDataLoader<T>(
 
       const loadTime = performance.now() - startTime;
       const dataSize = JSON.stringify(data).length;
+
+      loadingRef.current = false;
+      retryCountRef.current = 0;
 
       setState(prev => ({
         ...prev,
@@ -113,6 +127,9 @@ export function useDataLoader<T>(
       const loadTime = performance.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
+      loadingRef.current = false;
+      retryCountRef.current += 1;
+
       setState(prev => ({
         ...prev,
         loading: false,
@@ -130,19 +147,19 @@ export function useDataLoader<T>(
         logger.error('DATA_LOADER', `Failed to load data`, {
           key: dataKey,
           error: errorMessage,
-          retryCount: state.retryCount + 1,
+          retryCount: retryCountRef.current,
           loadTime: Math.round(loadTime),
         });
       }
 
       // Auto-retry if we haven't exceeded retry attempts
-      if (state.retryCount < retryAttempts) {
+      if (retryCountRef.current < retryAttempts) {
         setTimeout(() => {
           loadData(forceRefresh);
-        }, retryDelay * Math.pow(2, state.retryCount)); // Exponential backoff
+        }, retryDelay * Math.pow(2, retryCountRef.current)); // Exponential backoff
       }
     }
-  }, [dataKey, fetcher, state.loading, state.retryCount, cacheTimeout, enableDebug, retryAttempts, retryDelay]);
+  }, [dataKey, fetcher, cacheTimeout, enableDebug, retryAttempts, retryDelay]);
 
   const retry = useCallback(() => {
     loadData(true);
@@ -156,7 +173,10 @@ export function useDataLoader<T>(
     if (autoFetch) {
       loadData();
     }
-  }, [autoFetch, loadData]);
+    // We intentionally omit loadData from dependencies to prevent infinite loops
+    // We only want to re-fetch when dataKey or autoFetch changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey, autoFetch]);
 
   return {
     ...state,
@@ -173,7 +193,7 @@ export function useDataLoader<T>(
 export function useStatsData(profile = 'default') {
   return useDataLoader(
     `stats_${profile}`,
-    () => fetchStats(profile).then(result => result.data),
+    () => fetchStats(profile).then(result => result.data.stats),
     {
       autoFetch: true,
       retryAttempts: 3,

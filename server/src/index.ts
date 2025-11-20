@@ -128,6 +128,10 @@ await app.register(cors, { origin: true });
 
 app.get("/metrics", async (req, reply)=>{ reply.header("Content-Type","text/plain; version=0.0.4"); reply.send(metricsText()); });
 
+app.get("/api/health", async (_req, reply) => {
+  reply.send({ status: "ok", uptime: process.uptime() });
+});
+
 app.get("/api/profiles", async (_req, reply) => {
   const entries = fs.existsSync(PROFILES_DIR)
     ? fs.readdirSync(PROFILES_DIR, { withFileTypes: true }).filter(d=>d.isDirectory()).map(d=>d.name)
