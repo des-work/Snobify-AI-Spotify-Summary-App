@@ -15,7 +15,7 @@ Start-Sleep -Seconds 10
 # Test health endpoint
 try {
     Write-Host "Testing health endpoint..." -ForegroundColor Yellow
-    $healthResponse = Invoke-WebRequest -Uri "http://127.0.0.1:8899/health" -UseBasicParsing
+    $healthResponse = Invoke-WebRequest -Uri "http://127.0.0.1:8899/api/health" -UseBasicParsing
     Write-Host "Health check: $($healthResponse.StatusCode)" -ForegroundColor Green
     Write-Host "Health response: $($healthResponse.Content)" -ForegroundColor Gray
 } catch {
@@ -39,7 +39,7 @@ try {
 # Test debug endpoint
 try {
     Write-Host "Testing debug endpoint..." -ForegroundColor Yellow
-    $debugResponse = Invoke-WebRequest -Uri "http://127.0.0.1:8899/debug?profile=default" -UseBasicParsing
+    $debugResponse = Invoke-WebRequest -Uri "http://127.0.0.1:8899/api/debug?profile=default" -UseBasicParsing
     Write-Host "Debug check: $($debugResponse.StatusCode)" -ForegroundColor Green
 } catch {
     Write-Host "Debug check failed: $($_.Exception.Message)" -ForegroundColor Red
