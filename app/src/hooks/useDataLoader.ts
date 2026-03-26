@@ -169,6 +169,46 @@ export function useDataLoader<T>(
     loadData(true);
   }, [loadData]);
 
+  /**
+   * Clears all cached data (memory + localStorage) and resets local state back
+   * to the initial blank state, then triggers a fresh fetch.
+   * Use this when the user wants a completely fresh start.
+   */
+  const reset = useCallback(() => {
+    // Bust the in-memory cache for this key
+    dataFlowManager.invalidateCache(dataKey);
+
+    // Also clear any localStorage offline cache entries for this key
+    try {
+      localStorage.removeItem(`snobify_cache_${dataKey}`);
+    } catch { /* ignore */ }
+
+    // Wipe local React state back to blank
+    loadingRef.current = false;
+    retryCountRef.current = 0;
+    setState({
+      data: null,
+      loading: false,
+      error: null,
+      lastFetch: null,
+      retryCount: 0,
+      debugInfo: {
+        fetchAttempts: 0,
+        cacheHits: 0,
+        networkErrors: 0,
+        dataSize: 0,
+        loadTime: 0,
+      },
+    });
+
+    if (enableDebug) {
+      logger.info('DATA_LOADER', `Cache reset for key: ${dataKey}`);
+    }
+
+    // Kick off a fresh load
+    loadData(true);
+  }, [dataKey, enableDebug, loadData]);
+
   useEffect(() => {
     if (autoFetch) {
       loadData();
@@ -182,6 +222,7 @@ export function useDataLoader<T>(
     ...state,
     retry,
     refresh,
+    reset,
     loadData,
   };
 }

@@ -214,10 +214,11 @@ export function buildTasteProfile(rowsIn: Row[], opts?: Partial<TasteOptions>): 
   const nonUS = (countryCounts.get("US") ? (wTotal - (countryCounts.get("US")||0)) : wTotal);
   const internationality = clamp(Math.round(100 * (nonUS / Math.max(1, wTotal))));
 
-  // Era balance (spread across 5y + decade)
+  // Era balance: higher score = releases spread across many eras (true balance).
+  // entropyNorm returns 0 for a single era, 1 for perfectly even spread.
   const d5 = by5y(yearsRelease);
   const dec = byDecade(yearsRelease);
-  const eraBalance = clamp(Math.round((1 - entropyNorm(d5.map(x=>x.count))) * 100));
+  const eraBalance = clamp(Math.round(entropyNorm(d5.map(x=>x.count)) * 100));
 
   // Weighted aggregate (your weights)
   // Cohesion 30%, Rarity 25%, Variety 15%, Exploration 15%, Internationality 10%, Era Balance 5%

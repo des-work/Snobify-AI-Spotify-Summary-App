@@ -2,13 +2,14 @@ import { CardProps } from "./types";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function ActivityTrend({ stats }: CardProps) {
-  const data = stats.activityTrend.slice(-18).map(d => ({
+  const trend = stats.activityTrend ?? [];
+  const data = trend.slice(-18).map(d => ({
     month: d.month.slice(2), // "2024-03" → "24-03"
     plays: d.count,
   }));
 
-  const totalPlays = stats.activityTrend.reduce((s, d) => s + d.count, 0);
-  const peakMonth = stats.activityTrend.reduce(
+  const totalPlays = trend.reduce((s, d) => s + d.count, 0);
+  const peakMonth = trend.reduce(
     (best, d) => (d.count > best.count ? d : best),
     { month: "", count: 0 }
   );

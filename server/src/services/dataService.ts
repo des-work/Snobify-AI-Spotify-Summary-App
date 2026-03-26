@@ -17,30 +17,31 @@ export class DataService {
         const hdir = path.join(pdir, "history");
         const singleCsv = path.join(pdir, "history.csv");
 
-        // Check if we have data in the Music data folder
-        const musicDataDir = path.join(ROOT_DIR, "Music data", "spotify_playlists");
-
-        if (fs.existsSync(musicDataDir)) {
-            // Use the Music data folder if it exists
-            return {
-                isDirectory: true,
-                path: musicDataDir,
-                type: 'music_data'
-            };
-        }
-
-        // Fall back to profile-based structure
+        // Profile-specific data always takes priority — uploaded files win.
         if (fs.existsSync(singleCsv)) {
             return {
                 isDirectory: false,
                 path: singleCsv,
                 type: 'single_csv'
             };
-        } else if (fs.existsSync(hdir) && fs.statSync(hdir).isDirectory()) {
+        }
+
+        if (fs.existsSync(hdir) && fs.statSync(hdir).isDirectory()) {
             return {
                 isDirectory: true,
                 path: hdir,
                 type: 'profile_history'
+            };
+        }
+
+        // Last resort: the shared "Music data" directory — only used when
+        // there is no profile-specific data at all.
+        const musicDataDir = path.join(ROOT_DIR, "Music data", "spotify_playlists");
+        if (fs.existsSync(musicDataDir)) {
+            return {
+                isDirectory: true,
+                path: musicDataDir,
+                type: 'music_data'
             };
         }
 

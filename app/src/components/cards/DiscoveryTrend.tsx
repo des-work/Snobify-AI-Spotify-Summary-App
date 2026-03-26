@@ -2,19 +2,20 @@ import { CardProps } from "./types";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function DiscoveryTrend({ stats }: CardProps) {
+  const trend = stats.discoveryTrend ?? [];
   // Show last 18 months of discovery data
-  const data = stats.discoveryTrend.slice(-18).map(d => ({
+  const data = trend.slice(-18).map(d => ({
     month: d.month.slice(2), // "2024-03" → "24-03"
     discovered: d.count,
   }));
 
-  const totalDiscovered = stats.discoveryTrend.reduce((s, d) => s + d.count, 0);
-  const peakDiscovery = stats.discoveryTrend.reduce(
+  const totalDiscovered = trend.reduce((s, d) => s + d.count, 0);
+  const peakDiscovery = trend.reduce(
     (best, d) => (d.count > best.count ? d : best),
     { month: "", count: 0 }
   );
-  const avgPerMonth = stats.discoveryTrend.length > 0
-    ? Math.round(totalDiscovered / stats.discoveryTrend.length)
+  const avgPerMonth = trend.length > 0
+    ? Math.round(totalDiscovered / trend.length)
     : 0;
 
   return (

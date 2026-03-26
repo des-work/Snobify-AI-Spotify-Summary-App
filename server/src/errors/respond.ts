@@ -14,7 +14,8 @@ export function sendError(
 function httpCode(code: keyof typeof ERROR_CODE): number {
   switch(code){
     case "ProfileNotFound": return 404;
-    case "CsvMissing": return 400;
+    case "DataNotFound":    return 404;
+    case "CsvMissing":      return 400;
     case "CsvSchemaInvalid": return 422;
     case "SpotifyNotConfigured": return 400;
     default: return 500;

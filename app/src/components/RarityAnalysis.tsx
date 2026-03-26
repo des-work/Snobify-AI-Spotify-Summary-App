@@ -8,8 +8,9 @@ interface RarityAnalysisProps {
 }
 
 export default function RarityAnalysis({ stats, onNext, onBack }: RarityAnalysisProps) {
-  const { rareTracks, playlistRater } = stats;
-  const rarityScore = playlistRater.rarityScore;
+  const rareTracks = stats.rareTracks ?? [];
+  const { playlistRater } = stats;
+  const rarityScore = playlistRater?.rarityScore ?? 0;
 
   const getRarityTier = () => {
     if (rarityScore >= 80) return { label: 'Legendary', class: 'rarity-legendary' };

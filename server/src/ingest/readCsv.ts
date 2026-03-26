@@ -35,18 +35,58 @@ export type TrackRow = z.infer<typeof RowSchema>;
 const readCsv = async (file: string): Promise<TrackRow[]> => {
   if (!fs.existsSync(file)) throw new Error("CSV not found at " + file);
   const out: TrackRow[] = [];
-  const required = ["Track URI"];
-  const raw = fs.createReadStream(file).pipe(parse({ columns: true, skip_empty_lines: true }));
-  for await (const rec of raw as any) {
-    const obj = RowSchema.parse(rec);
-    for (const col of required) {
-      if (!(col in rec) || String(rec[col]).trim() === "") {
-        throw new Error(`CSV missing required column: '${col}'`);
+  let skipped = 0;
+  let hasTrackUriColumn = false;
+
+  return new Promise((resolve, reject) => {
+    const stream = fs.createReadStream(file);
+    const parser = parse({ columns: true, skip_empty_lines: true, relax_column_count: true });
+
+    stream.on("error", (err) => reject(new Error("Failed to read file: " + err.message)));
+    parser.on("error", (err) => {
+      // Non-fatal parse errors: log and resolve with what we have
+      console.warn(`[readCsv] Parse warning in ${file}: ${err.message} (${out.length} rows kept, ${skipped} skipped)`);
+      resolve(out);
+    });
+
+    parser.on("readable", () => {
+      let rec: any;
+      while ((rec = parser.read()) !== null) {
+        // Detect Track URI column on first record
+        if (!hasTrackUriColumn && typeof rec === "object" && rec !== null) {
+          hasTrackUriColumn = "Track URI" in rec;
+          if (!hasTrackUriColumn) {
+            // Fatal: wrong CSV format — reject immediately
+            parser.destroy();
+            stream.destroy();
+            reject(new Error("CSV missing required column: 'Track URI'"));
+            return;
+          }
+        }
+        // Skip rows with empty Track URI
+        if (!rec["Track URI"] || String(rec["Track URI"]).trim() === "") {
+          skipped++;
+          continue;
+        }
+        try {
+          const obj = RowSchema.parse(rec);
+          out.push(obj);
+        } catch {
+          // Skip malformed rows silently
+          skipped++;
+        }
       }
-    }
-    out.push(obj);
-  }
-  return out;
+    });
+
+    parser.on("end", () => {
+      if (skipped > 0) {
+        console.warn(`[readCsv] ${file}: ${out.length} valid rows, ${skipped} skipped`);
+      }
+      resolve(out);
+    });
+
+    stream.pipe(parser);
+  });
 };
 
 /**

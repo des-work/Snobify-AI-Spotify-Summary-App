@@ -212,7 +212,7 @@ class ConnectionManager {
     const cacheKey = this.getCacheKey(url, fetchOptions);
 
     // Check cache first (only for GET requests)
-    if (!skipCache && fetchOptions.method === 'GET' && !fetchOptions.method) {
+    if (!skipCache && fetchOptions.method === 'GET') {
       const cachedData = this.getCachedData<T>(cacheKey);
       if (cachedData) {
         logger.debug('CONNECTION_MANAGER', 'Cache hit', { url, cacheKey });
@@ -246,7 +246,7 @@ class ConnectionManager {
         const data = await response.json();
 
         // Cache successful GET requests
-        if (!skipCache && fetchOptions.method === 'GET' && !fetchOptions.method) {
+        if (!skipCache && fetchOptions.method === 'GET') {
           const etag = response.headers.get('etag') || undefined;
           this.setCachedData(cacheKey, data, etag);
         }

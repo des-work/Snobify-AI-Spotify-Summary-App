@@ -8,9 +8,10 @@ interface TasteProfileProps {
 }
 
 export default function TasteProfile({ stats, onBack, onExport }: TasteProfileProps) {
-  const { taste, playlistRater, topUniqueGenres } = stats;
+  const { taste, playlistRater } = stats;
+  const topUniqueGenres = stats.topUniqueGenres ?? [];
 
-  const pct = (n: number) => Math.round(n * 100);
+  const pct = (n: number) => Math.round((n ?? 0) * 100);
 
   // Top genres from computed stats
   const topGenres = topUniqueGenres.slice(0, 10);
@@ -50,7 +51,7 @@ export default function TasteProfile({ stats, onBack, onExport }: TasteProfilePr
 
   // Overall composite score
   const overallPct = Math.round(
-    (taste.avgDanceability + taste.avgEnergy + taste.avgValence + taste.acousticBias + taste.instrumentalBias) / 5 * 100
+    ((taste?.avgDanceability ?? 0) + (taste?.avgEnergy ?? 0) + (taste?.avgValence ?? 0) + (taste?.acousticBias ?? 0) + (taste?.instrumentalBias ?? 0)) / 5 * 100
   );
 
   return (

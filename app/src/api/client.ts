@@ -2,13 +2,6 @@ import type { StatsResponse } from "../types";
 import { logger } from "../utils/debugLogger";
 import connectionManager from "./connectionManager";
 
-interface ApiError {
-  error: {
-    message: string;
-    code?: string;
-    reqId?: string;
-  };
-}
 
 class SnobifyApiError extends Error {
   constructor(
@@ -23,67 +16,6 @@ class SnobifyApiError extends Error {
   }
 }
 
-async function handleApiResponse<T>(response: Response, url: string): Promise<T> {
-  const startTime = performance.now();
-  
-  logger.debug('API_REQUEST', `Making request to ${url}`, {
-    method: 'GET',
-    url,
-    timestamp: new Date().toISOString()
-  });
-
-  if (!response.ok) {
-    let errorData: ApiError;
-    try {
-      errorData = await response.json();
-    } catch {
-      const error = new SnobifyApiError(
-        `HTTP ${response.status}: ${response.statusText}`,
-        'HTTP_ERROR',
-        undefined,
-        response.status,
-        url
-      );
-      
-      logger.error('API_ERROR', `HTTP error for ${url}`, {
-        status: response.status,
-        statusText: response.statusText,
-        url,
-        duration: performance.now() - startTime
-      });
-      
-      throw error;
-    }
-    
-    const error = new SnobifyApiError(
-      errorData.error.message,
-      errorData.error.code,
-      errorData.error.reqId,
-      response.status,
-      url
-    );
-    
-    logger.error('API_ERROR', `API error for ${url}`, {
-      error: errorData.error,
-      status: response.status,
-      url,
-      duration: performance.now() - startTime
-    });
-    
-    throw error;
-  }
-  
-  const data = await response.json();
-  const duration = performance.now() - startTime;
-  
-  logger.info('API_SUCCESS', `Successfully fetched ${url}`, {
-    url,
-    duration: Math.round(duration),
-    dataSize: JSON.stringify(data).length
-  });
-  
-  return data;
-}
 
 export async function fetchStats(profile = "default"): Promise<{
   data: StatsResponse;
@@ -127,7 +59,7 @@ export async function fetchStats(profile = "default"): Promise<{
 }
 
 export async function fetchDebug(profile = "default"): Promise<any> {
-  const url = `/debug?profile=${encodeURIComponent(profile)}`;
+  const url = `/api/debug?profile=${encodeURIComponent(profile)}`;
   
   try {
     logger.debug('API_DEBUG', `Fetching debug info for profile: ${profile}`);

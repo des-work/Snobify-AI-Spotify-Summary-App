@@ -13,6 +13,7 @@ export type Stats = {
   playlistRater: PlaylistRater;
   activityTrend: { month:string; count:number }[];
   snob: string;
+  _counters?: { uniqueTracks:number; uniquePlays:number };
   meta: { hash:string; rows:number; files:number; skipped:number; window:{ start:string; end:string } };
 };
 export type ErrorEnvelope = {
