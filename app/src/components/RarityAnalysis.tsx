@@ -8,47 +8,34 @@ interface RarityAnalysisProps {
 }
 
 export default function RarityAnalysis({ stats, onNext, onBack }: RarityAnalysisProps) {
-  // Calculate rarity metrics
-  const tracks = stats.tracks || [];
-  const avgPopularity = tracks.reduce((sum, track) => sum + (track.popularity || 0), 0) / tracks.length;
-  
-  // Find rare tracks (popularity < 30)
-  const rareTracks = tracks
-    .filter(track => (track.popularity || 0) < 30)
-    .sort((a, b) => (a.popularity || 0) - (b.popularity || 0))
-    .slice(0, 10);
+  const { rareTracks, playlistRater } = stats;
+  const rarityScore = playlistRater.rarityScore;
 
-  // Find rare artists
-  const artistPopularity = tracks.reduce((acc, track) => {
-    if (track.artistName) {
-      acc[track.artistName] = (acc[track.artistName] || 0) + (track.popularity || 0);
-    }
-    return acc;
-  }, {} as Record<string, number>);
-
-  const rareArtists = Object.entries(artistPopularity)
-    .map(([artist, totalPop]) => ({ artist, avgPopularity: totalPop / tracks.filter(t => t.artistName === artist).length }))
-    .filter(a => a.avgPopularity < 40)
-    .sort((a, b) => a.avgPopularity - b.avgPopularity)
-    .slice(0, 8);
-
-  // Calculate overall rarity score
-  const getRarityScore = () => {
-    if (avgPopularity < 20) return { score: 95, label: 'Legendary', class: 'rarity-legendary' };
-    if (avgPopularity < 35) return { score: 80, label: 'Underground', class: 'rarity-underground' };
-    if (avgPopularity < 50) return { score: 60, label: 'Niche', class: 'rarity-niche' };
-    return { score: 25, label: 'Mainstream', class: 'rarity-mainstream' };
+  const getRarityTier = () => {
+    if (rarityScore >= 80) return { label: 'Legendary', class: 'rarity-legendary' };
+    if (rarityScore >= 60) return { label: 'Underground', class: 'rarity-underground' };
+    if (rarityScore >= 40) return { label: 'Niche', class: 'rarity-niche' };
+    return { label: 'Mainstream', class: 'rarity-mainstream' };
   };
 
-  const rarityScore = getRarityScore();
+  const tier = getRarityTier();
 
-  // Generate rarity-based snob remarks
+  // Group rare tracks by artist to find underground artists
+  const artistPops: Record<string, number[]> = {};
+  for (const t of rareTracks) {
+    (artistPops[t.artist] ??= []).push(t.pop);
+  }
+  const rareArtists = Object.entries(artistPops)
+    .map(([artist, pops]) => ({ artist, avgPop: Math.round(pops.reduce((a, b) => a + b, 0) / pops.length) }))
+    .sort((a, b) => a.avgPop - b.avgPop)
+    .slice(0, 8);
+
   const generateRarityRemark = () => {
-    if (rarityScore.score > 80) {
+    if (rarityScore >= 80) {
       return "Impressive. You've managed to avoid the mainstream like it's a plague. Your taste is so underground, I'm surprised you haven't discovered music that doesn't exist yet.";
-    } else if (rarityScore.score > 60) {
+    } else if (rarityScore >= 60) {
       return "A respectable level of obscurity. You're not quite mainstream, but you're not exactly pioneering new musical frontiers either. Comfortably niche.";
-    } else if (rarityScore.score > 30) {
+    } else if (rarityScore >= 40) {
       return "Your taste is... adequate. You've found a nice middle ground between popular and obscure. How delightfully average.";
     } else {
       return "Oh dear. Your musical preferences are so mainstream, I can practically hear the radio DJ introducing your playlist. How... predictable.";
@@ -72,20 +59,20 @@ export default function RarityAnalysis({ stats, onNext, onBack }: RarityAnalysis
           <h2 className="title">Your Rarity Score</h2>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
             <div style={{ fontSize: '4rem', fontWeight: '900', marginBottom: '16px' }}>
-              {rarityScore.score}%
+              {rarityScore}%
             </div>
-            <div className={`rarity-score ${rarityScore.class}`}>
-              {rarityScore.label}
+            <div className={`rarity-score ${tier.class}`}>
+              {tier.label}
             </div>
           </div>
           <div className="progress-bar">
-            <div 
-              className="progress-fill" 
-              style={{ width: `${rarityScore.score}%` }}
+            <div
+              className="progress-fill"
+              style={{ width: `${rarityScore}%` }}
             />
           </div>
           <p style={{ marginTop: '16px', color: 'var(--muted)' }}>
-            Based on Spotify popularity scores. Lower scores = more mainstream.
+            Based on inverse average Spotify popularity. Higher = more obscure.
           </p>
         </div>
 
@@ -93,26 +80,38 @@ export default function RarityAnalysis({ stats, onNext, onBack }: RarityAnalysis
           <h2 className="title">Rarity Breakdown</h2>
           <div style={{ marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>Average Popularity</span>
-              <span>{Math.round(avgPopularity)}/100</span>
+              <span>Rarity Score</span>
+              <span>{rarityScore}/100</span>
             </div>
             <div className="progress-bar">
-              <div 
-                className="progress-fill" 
-                style={{ width: `${avgPopularity}%` }}
+              <div
+                className="progress-fill"
+                style={{ width: `${rarityScore}%` }}
               />
             </div>
           </div>
           <div style={{ marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>Rare Tracks Found</span>
-              <span>{rareTracks.length}</span>
+              <span>Cohesion</span>
+              <span>{playlistRater.cohesion}/100</span>
+            </div>
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: `${playlistRater.cohesion}%` }}
+              />
             </div>
           </div>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>Underground Artists</span>
-              <span>{rareArtists.length}</span>
+              <span>Variety</span>
+              <span>{playlistRater.variety}/100</span>
+            </div>
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: `${playlistRater.variety}%` }}
+              />
             </div>
           </div>
         </div>
@@ -122,23 +121,28 @@ export default function RarityAnalysis({ stats, onNext, onBack }: RarityAnalysis
         <div className="card">
           <h2 className="title">Your Rarest Finds</h2>
           <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {rareTracks.map((track, index) => (
-              <div key={index} style={{ 
-                padding: '12px', 
+            {rareTracks.slice(0, 10).map((track, index) => (
+              <div key={index} style={{
+                padding: '12px',
                 borderBottom: '1px solid var(--border)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
                 <div>
-                  <div style={{ fontWeight: '600' }}>{track.trackName}</div>
-                  <div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>{track.artistName}</div>
+                  <div style={{ fontWeight: '600' }}>{track.name}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>{track.artist}</div>
                 </div>
-                <div className={`rarity-score ${track.popularity! < 20 ? 'rarity-legendary' : 'rarity-underground'}`}>
-                  {track.popularity}/100
+                <div className={`rarity-score ${track.pop < 20 ? 'rarity-legendary' : 'rarity-underground'}`}>
+                  {track.pop}/100
                 </div>
               </div>
             ))}
+            {rareTracks.length === 0 && (
+              <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '24px' }}>
+                No rare tracks found in your library.
+              </p>
+            )}
           </div>
         </div>
 
@@ -146,19 +150,24 @@ export default function RarityAnalysis({ stats, onNext, onBack }: RarityAnalysis
           <h2 className="title">Underground Artists</h2>
           <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
             {rareArtists.map((artist, index) => (
-              <div key={index} style={{ 
-                padding: '12px', 
+              <div key={index} style={{
+                padding: '12px',
                 borderBottom: '1px solid var(--border)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
                 <div style={{ fontWeight: '600' }}>{artist.artist}</div>
-                <div className={`rarity-score ${artist.avgPopularity < 25 ? 'rarity-legendary' : 'rarity-niche'}`}>
-                  {Math.round(artist.avgPopularity)}/100
+                <div className={`rarity-score ${artist.avgPop < 25 ? 'rarity-legendary' : 'rarity-niche'}`}>
+                  {artist.avgPop}/100
                 </div>
               </div>
             ))}
+            {rareArtists.length === 0 && (
+              <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '24px' }}>
+                No underground artists found.
+              </p>
+            )}
           </div>
         </div>
       </div>

@@ -35,7 +35,18 @@ export class StatsController {
                 .filter((d: any) => !isNaN(d.getTime()))
                 .sort((a: any, b: any) => a.getTime() - b.getTime());
 
+            // Determine file count from data path
+            let fileCount = 1;
+            if (dataPath?.isDirectory) {
+                const fs = await import("fs");
+                try {
+                    fileCount = fs.default.readdirSync(dataPath.path)
+                        .filter((f: string) => f.toLowerCase().endsWith(".csv")).length;
+                } catch { fileCount = 1; }
+            }
+
             const stats = compute(rows);
+            stats.meta.files = fileCount;
             timer.lap("compute");
 
             // plug a stable-ish hash if missing
@@ -90,8 +101,17 @@ export class StatsController {
                 .filter((d: any) => !isNaN(d.getTime()))
                 .sort((a: any, b: any) => a.getTime() - b.getTime());
 
+            let debugFileCount = 1;
+            if (dataPath?.isDirectory) {
+                const fs = await import("fs");
+                try {
+                    debugFileCount = fs.default.readdirSync(dataPath.path)
+                        .filter((f: string) => f.toLowerCase().endsWith(".csv")).length;
+                } catch { debugFileCount = 1; }
+            }
+
             const meta = {
-                files: 0, // TODO: fix this if needed, or remove
+                files: debugFileCount,
                 rows: rowsAll.length,
                 window: {
                     start: dates.length ? dates[0].toISOString() : "",

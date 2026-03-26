@@ -22,7 +22,7 @@ type AppPage = 'welcome' | 'summary' | 'rarity' | 'taste';
 export default function App() {
   const [profile, setProfile] = useState("default");
   const [currentPage, setCurrentPage] = useState<AppPage>('welcome');
-  const [debugPanelOpen, setDebugPanelOpen] = useState(true);
+  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Use the enhanced data loader hook

@@ -109,7 +109,7 @@ export async function fetchStats(profile = "default"): Promise<{
     
     logger.info('API_STATS', `Stats fetched successfully`, {
       profile,
-      trackCount: data.stats?.tracks?.length || 0,
+      rows: data.stats?.meta?.rows || 0,
       latency: (data as any)._latencyMs,
       connectionStatus: connectionManager.getStatus()
     });
