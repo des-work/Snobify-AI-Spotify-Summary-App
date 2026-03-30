@@ -39,7 +39,7 @@ await app.register(cors, { origin: true });
 await app.register(multipart, {
   limits: {
     fileSize: 100 * 1024 * 1024, // 100 MB max per file
-    files: 20,
+    files: 500,                  // enough for a full playlist folder
   },
 });
 
@@ -75,10 +75,13 @@ app.post("/api/upload", async (req, reply) => {
   const incoming: { name: string; tmpPath: string; size: number }[] = [];
   const parts = req.parts();
 
+  // Use a numeric prefix on every temp file so collisions in sanitised names
+  // never cause a second write to overwrite the first.
+  let partIdx = 0;
   for await (const part of parts) {
     if (part.type !== "file") continue;
     const name = (part.filename || "upload.csv").replace(/[^a-zA-Z0-9._-]/g, "_");
-    const tmpPath = path.join(tmpDir, name);
+    const tmpPath = path.join(tmpDir, `${partIdx++}_${name}`);   // always unique
     try {
       await pipeline(part.file, fs.createWriteStream(tmpPath));
       const size = fs.statSync(tmpPath).size;
@@ -114,10 +117,21 @@ app.post("/api/upload", async (req, reply) => {
       }
     }
     fs.mkdirSync(histDir, { recursive: true });
+    const usedDestNames = new Set<string>();
     for (const file of incoming) {
-      const dest = path.join(histDir, file.name);
+      // Deduplicate destination names (two playlists can share a sanitised name)
+      let destName = file.name;
+      if (usedDestNames.has(destName)) {
+        const ext = path.extname(destName);
+        const base = destName.slice(0, destName.length - ext.length);
+        let n = 1;
+        while (usedDestNames.has(`${base}_${n}${ext}`)) n++;
+        destName = `${base}_${n}${ext}`;
+      }
+      usedDestNames.add(destName);
+      const dest = path.join(histDir, destName);
       fs.renameSync(file.tmpPath, dest);
-      saved.push({ filename: file.name, size: file.size, path: path.relative(ROOT_DIR, dest) });
+      saved.push({ filename: destName, size: file.size, path: path.relative(ROOT_DIR, dest) });
     }
     // Remove single-file history.csv so DataService picks the directory
     const singlePath = path.join(profileDir, "history.csv");

@@ -13,6 +13,10 @@ export type Stats = {
   playlistRater: PlaylistRater;
   activityTrend: { month:string; count:number }[];
   snob: string;
+  decadeBreakdown?: { decade:string; pct:number }[];
+  genreArtists?:    { genre:string; artists:string[] }[];
+  recentTracks?:    { name:string; artist:string; genres:string[]; playedAt:string }[];
+  topArtists?:      { artist:string; trackCount:number; playCount:number; avgPop:number; topTrack:string }[];
   _counters?: { uniqueTracks:number; uniquePlays:number };
   meta: { hash:string; rows:number; files:number; skipped:number; window:{ start:string; end:string } };
 };

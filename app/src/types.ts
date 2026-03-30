@@ -30,7 +30,11 @@ export type Stats = {
   playlistRater:    PlaylistRater;
   activityTrend:    TrendPoint[];
   snob:             string;
-  _counters?:       { uniqueTracks: number; uniquePlays: number };  // convenience — always present but optional for safety
+  decadeBreakdown?: { decade: string; pct: number }[];
+  genreArtists?:    { genre: string; artists: string[] }[];
+  recentTracks?:    { name: string; artist: string; genres: string[]; playedAt: string }[];
+  topArtists?:      { artist: string; trackCount: number; playCount: number; avgPop: number; topTrack: string }[];
+  _counters?:       { uniqueTracks: number; uniquePlays: number };
   meta: {
     hash:    string;
     rows:    number;

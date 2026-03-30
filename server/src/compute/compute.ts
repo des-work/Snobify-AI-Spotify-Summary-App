@@ -36,7 +36,7 @@ export function compute(rows: Row[], opts?: {
 }){
   const cutoffMonth = opts?.cutoffMonth ?? "2008-10";
   const dropPre     = opts?.dropPreSpotify ?? true;
-  const topGenres   = opts?.topGenresLimit ?? 15;
+  const topGenres   = opts?.topGenresLimit ?? 25;
   const weighted    = opts?.weightedAverages ?? true;
   const rareMode    = opts?.rareMode ?? "topN";
   const rareN       = opts?.rareN ?? 25;
@@ -95,6 +95,86 @@ export function compute(rows: Row[], opts?: {
   }
   const topUniqueGenres = Array.from(gcount.entries())
     .sort((a,b)=>b[1]-a[1]).slice(0, topGenres).map(([genre,count])=>({genre,count}));
+
+  // Decade breakdown: what release-year eras do unique tracks come from?
+  const decadeMap = new Map<string,number>();
+  for(const p of uniqueTracks){
+    const rd = p["Release Date"];
+    if(!rd) continue;
+    const y = new Date(String(rd)).getUTCFullYear();
+    if(!Number.isFinite(y) || y < 1900 || y > 2030) continue;
+    const dec = String(Math.floor(y/10)*10);
+    decadeMap.set(dec,(decadeMap.get(dec)||0)+1);
+  }
+  const decTotal = uniqueTracks.length || 1;
+  const decadeBreakdown = Array.from(decadeMap.entries())
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([decade,count])=>({ decade, pct: Math.round((count/decTotal)*100) }));
+
+  // Top 3 artists per genre (powers the genre deep-dive slide)
+  const artistsByGenre = new Map<string, Map<string,number>>();
+  for(const p of uniqueTracks){
+    const raw = (p["Genres"]||"").split(/[|,]/).map((s:string)=>normGenre(s)).filter(Boolean);
+    const gs  = Array.from(new Set(raw));
+    // Use only the first credited artist to avoid "feat." noise
+    const artist = (p["Artist Name(s)"]||"").split(",")[0].trim();
+    if(!artist) continue;
+    for(const g of gs){
+      const m = artistsByGenre.get(g) ?? new Map<string,number>();
+      m.set(artist,(m.get(artist)||0)+1);
+      artistsByGenre.set(g,m);
+    }
+  }
+  const genreArtists = topUniqueGenres.map(({genre})=>{
+    const m = artistsByGenre.get(genre);
+    const artists = m
+      ? [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([name])=>name)
+      : [];
+    return { genre, artists };
+  });
+
+  // Recent tracks: most recently played unique tracks (for recency slide)
+  const recentSorted = [...uniquePlays]
+    .filter(p => p._d)
+    .sort((a, b) => b._d!.getTime() - a._d!.getTime());
+  const seenRecent = new Set<string>();
+  const recentDeduped: typeof recentSorted = [];
+  for (const p of recentSorted) {
+    if (!p["Track URI"] || seenRecent.has(p["Track URI"])) continue;
+    seenRecent.add(p["Track URI"]);
+    recentDeduped.push(p);
+    if (recentDeduped.length >= 15) break;
+  }
+  const recentTracks = recentDeduped.map(p => ({
+    name:     p["Track Name"] || '',
+    artist:   (p["Artist Name(s)"] || '').split(',')[0].trim(),
+    genres:   (p["Genres"] || '').split(/[|,]/).map((s:string)=>normGenre(s)).filter(Boolean).slice(0, 3),
+    playedAt: p._d!.toISOString(),
+  }));
+
+  // Top artists overall by unique-track count (for artist roast slide)
+  const artistStats = new Map<string,{ tracks:number; plays:number; popSum:number; topTrack:string }>();
+  for (const p of uniqueTracks) {
+    const artist = (p["Artist Name(s)"] || '').split(',')[0].trim();
+    if (!artist) continue;
+    const ex = artistStats.get(artist) ?? { tracks:0, plays:0, popSum:0, topTrack:'' };
+    artistStats.set(artist, {
+      tracks:   ex.tracks + 1,
+      plays:    ex.plays + (playsPerTrack.get(p["Track URI"]) || 1),
+      popSum:   ex.popSum + p._pop,
+      topTrack: ex.topTrack || (p["Track Name"] || ''),
+    });
+  }
+  const topArtists = [...artistStats.entries()]
+    .sort((a,b) => b[1].tracks - a[1].tracks)
+    .slice(0, 20)
+    .map(([artist,{ tracks, plays, popSum, topTrack }]) => ({
+      artist,
+      trackCount: tracks,
+      playCount:  plays,
+      avgPop:     tracks > 0 ? Math.round(popSum / tracks) : 0,
+      topTrack,
+    }));
 
   // First-play discovery per month (earliest timestamp per track)
   const firstByTrack = new Map<string, Date>();
@@ -170,6 +250,7 @@ export function compute(rows: Row[], opts?: {
 
   return {
     topUniqueGenres, discoveryTrend, rareTracks, taste, playlistRater, activityTrend, snob,
+    decadeBreakdown, genreArtists, recentTracks, topArtists,
     _counters: { uniqueTracks: uniqTracks, uniquePlays: uniquePlays.length },
     meta:{ hash:"", rows: uniquePlays.length, files: 0, skipped: 0, window:{start,end} }
   };

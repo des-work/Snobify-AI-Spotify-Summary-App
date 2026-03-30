@@ -333,12 +333,12 @@ class ConnectionManager {
 // ============================================================================
 
 export const connectionManager = new ConnectionManager({
-  baseUrl: '', // Will be set by Vite proxy
+  baseUrl: '',
   timeout: 15000,
-  retryAttempts: 3,
+  retryAttempts: 1,
   retryDelay: 1000,
-  healthCheckInterval: 30000,
-  cacheTimeout: 300000, // 5 minutes
+  healthCheckInterval: 60000,
+  cacheTimeout: 300000,
 });
 
 export default connectionManager;

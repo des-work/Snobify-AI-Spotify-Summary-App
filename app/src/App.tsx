@@ -34,7 +34,6 @@ export default function App() {
     error,
     retry,
     refresh,
-    reset,
     debugInfo,
   } = useStatsData(profile);
 
@@ -56,8 +55,7 @@ export default function App() {
   const handleAnalyze = (chosenProfile: string) => {
     logger.info('APP', 'User starting analysis', { profile: chosenProfile });
     setProfile(chosenProfile);
-    reset();
-    setCurrentPage('roast'); // data loads while loading screen shows; roast begins when data is ready
+    setCurrentPage('roast');
   };
 
   const handleRoastComplete = () => {
@@ -118,6 +116,7 @@ export default function App() {
 
   // Render content based on state
   const renderContent = () => {
+    try {
     // Welcome and Setup pages always render — they don't depend on data state
     if (currentPage === 'welcome') {
       return <WelcomePage onGetStarted={handleGetStarted} />;
@@ -133,8 +132,8 @@ export default function App() {
       );
     }
 
-    // Data-dependent pages: show loading/error gates
-    if (loading) {
+    // Data-dependent pages: show loading or error first
+    if (loading && !stats) {
       return (
         <div style={{
           display: 'flex',
@@ -145,7 +144,7 @@ export default function App() {
         }}>
           <div style={{ textAlign: 'center' }}>
             <div className="snob-avatar pulse" style={{ margin: '0 auto 24px' }}>
-              <div style={{ fontSize: '3rem' }}></div>
+              <div style={{ fontSize: '3rem' }}>🎧</div>
             </div>
             <h2>The Snob is analyzing your taste...</h2>
             <p>This may take a moment for large datasets</p>
@@ -153,19 +152,13 @@ export default function App() {
               <button className="btn btn-secondary" onClick={() => setCurrentPage('setup')}>
                 ← Back to Setup
               </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setDebugPanelOpen(true)}
-              >
-                Open Debug Panel
-              </button>
             </div>
           </div>
         </div>
       );
     }
 
-    if (error) {
+    if (error && !stats) {
       return (
         <div style={{
           display: 'flex',
@@ -177,13 +170,10 @@ export default function App() {
         }}>
           <div style={{ textAlign: 'center', maxWidth: '500px' }}>
             <h2>Oops! The Snob encountered an error</h2>
-            <p style={{ marginBottom: '24px' }}>{error}</p>
+            <p style={{ marginBottom: '24px' }}>{String(error)}</p>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn" onClick={() => setCurrentPage('setup')}>
                 ← Back to Setup
-              </button>
-              <button className="btn btn-secondary" onClick={() => setDebugPanelOpen(true)}>
-                Debug Panel
               </button>
               <button className="btn btn-secondary" onClick={() => window.location.reload()}>
                 Reload Page
@@ -194,8 +184,27 @@ export default function App() {
       );
     }
 
-    // Roast sequence — cinematic, full-screen, no nav chrome
-    if (currentPage === 'roast' && stats) {
+    // Roast sequence
+    if (currentPage === 'roast') {
+      if (!stats) {
+        return (
+          <div style={{
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            minHeight: '100vh', color: 'white',
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div className="snob-avatar pulse" style={{ margin: '0 auto 24px' }}>
+                <div style={{ fontSize: '3rem' }}>🎧</div>
+              </div>
+              <h2>Waiting for your data...</h2>
+              <p style={{ color: 'rgba(255,255,255,0.6)' }}>The Snob is preparing your roast</p>
+              <button className="btn btn-secondary" onClick={() => setCurrentPage('setup')} style={{ marginTop: 16 }}>
+                ← Back to Setup
+              </button>
+            </div>
+          </div>
+        );
+      }
       return (
         <SnobRoast
           stats={stats}
@@ -436,6 +445,31 @@ export default function App() {
         />
       </div>
     );
+
+    } catch (renderError) {
+      console.error('[App] Render error caught:', renderError);
+      return (
+        <div style={{
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          minHeight: '100vh', color: 'white', padding: '40px',
+        }}>
+          <div style={{ textAlign: 'center', maxWidth: '500px' }}>
+            <h2>Something went wrong</h2>
+            <p style={{ marginBottom: '24px' }}>
+              {renderError instanceof Error ? renderError.message : 'An unexpected error occurred'}
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button className="btn" onClick={() => { setCurrentPage('welcome'); }}>
+                Go Home
+              </button>
+              <button className="btn btn-secondary" onClick={() => window.location.reload()}>
+                Reload Page
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
   };
 
   return (

@@ -237,7 +237,7 @@ export function useStatsData(profile = 'default') {
     () => fetchStats(profile).then(result => result.data.stats),
     {
       autoFetch: true,
-      retryAttempts: 3,
+      retryAttempts: 1,
       cacheTimeout: 300000, // 5 minutes
       enableDebug: true,
     }
